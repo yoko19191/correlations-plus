@@ -319,16 +319,23 @@
             const containerWidth = plotContainer.clientWidth;
             const containerHeight = plotContainer.clientHeight;
 
-            return Math.min(
+            // Use the smaller dimension to ensure square cells
+            const cellSize = Math.min(
                 containerWidth / nCols,
                 containerHeight / nRows
             );
+
+            // Calculate new dimensions to maintain square cells
+            const newWidth = nCols * cellSize;
+            const newHeight = nRows * cellSize;
+
+            return { cellSize, newWidth, newHeight };
         }
 
         function updatePlotSize() {
-            const cellSize = calculateCellSize();
-            layout.width = nCols * cellSize;
-            layout.height = nRows * cellSize;
+            const { cellSize, newWidth, newHeight } = calculateCellSize();
+            layout.width = newWidth;
+            layout.height = newHeight;
             Plotly.relayout('plot', layout);
         }
 
@@ -462,24 +469,36 @@
 
         // Function to update heatmap based on thresholds
         function updateHeatmap(simThreshold, lenThreshold) {
+            let aboveThreshold = 0;
+            let aboveLengthThreshold = 0;
+            const correlations = [];
             const filteredMatrix = matrix.map((row, i) =>
                 row.map((val, j) => {
                     const rowLen = rowFull[i].length;
                     const colLen = colFull[j].length;
-                    return (val >= simThreshold && rowLen >= lenThreshold && colLen >= lenThreshold) ? val : null;
+                    const meetsThresholds = val >= simThreshold && rowLen >= lenThreshold && colLen >= lenThreshold;
+
+                    if (meetsThresholds) {
+                        aboveThreshold++;
+                        correlations.push({
+                            row: rowFull[i],
+                            col: colFull[j],
+                            rowLen,
+                            rowOff: i,
+                            colLen,
+                            colOff: j,
+                            similarity: val
+                        });
+                    }
+                    if (rowLen >= lenThreshold && colLen >= lenThreshold) {
+                        aboveLengthThreshold++;
+                    }
+
+                    return meetsThresholds ? val : null;
                 })
             );
 
-            // Count values above thresholds
-            const aboveThreshold = filteredMatrix.flat().filter(val => val !== null).length;
             document.getElementById('threshold-count').textContent = aboveThreshold;
-
-            // Count values above length threshold
-            const aboveLengthThreshold = filteredMatrix.flat().filter((val, idx) => {
-                const i = Math.floor(idx / nCols);
-                const j = idx % nCols;
-                return rowFull[i].length >= lenThreshold && colFull[j].length >= lenThreshold;
-            }).length;
             document.getElementById('length-count').textContent = aboveLengthThreshold;
 
             // Update hover text to only show for non-filtered cells
@@ -487,11 +506,14 @@
                 row.map((text, j) => filteredMatrix[i][j] !== null ? text : '')
             );
 
-            // Update the plot
-            Plotly.update('plot', {
-                z: [filteredMatrix],
-                text: [filteredHoverText]
-            });
+            // Update the plot with all necessary properties
+            Plotly.react('plot', [{
+                ...trace,
+                z: filteredMatrix,
+                text: filteredHoverText,
+                hoverinfo: 'text',
+                hoverongaps: false
+            }], layout);
 
             // Update similarity histogram with threshold line
             const shapes = [{
@@ -526,24 +548,6 @@
             Plotly.relayout('length-histogram', {
                 shapes: lengthShapes
             });
-
-            // Collect all correlations above thresholds
-            const correlations = [];
-            for (let i = 0; i < nRows; i++) {
-                for (let j = 0; j < nCols; j++) {
-                    if (filteredMatrix[i][j] !== null) {
-                        correlations.push({
-                            row: rowFull[i],
-                            col: colFull[j],
-                            rowLen: rowFull[i].length,
-                            rowOff: i,
-                            colLen: colFull[j].length,
-                            colOff: j,
-                            similarity: filteredMatrix[i][j]
-                        });
-                    }
-                }
-            }
 
             // Sort by similarity in ascending order and take bottom 100
             correlations.sort((a, b) => a.similarity - b.similarity);
@@ -590,8 +594,8 @@
             },
             autosize: true,
             margin: { l: 0, r: 0, t: 0, b: 0 },
-            width: nCols * calculateCellSize(),
-            height: nRows * calculateCellSize(),
+            width: nCols * calculateCellSize().cellSize,
+            height: nRows * calculateCellSize().cellSize,
             yaxis_scaleanchor: 'x',
             yaxis_scaleratio: 1
         };

@@ -12,6 +12,8 @@ interface CorrelationData {
     colLabels: string[];
     rowFull: string[];
     colFull: string[];
+    rowFile: string;
+    colFile: string;
 }
 
 function cosineSimilarity(a: number[], b: number[]): number {
@@ -100,7 +102,9 @@ async function main() {
             rowLabels,
             colLabels,
             rowFull: chunks1,
-            colFull: chunks2
+            colFull: chunks2,
+            rowFile: path.basename(file1),
+            colFile: file2 ? path.basename(file2) : path.basename(file1)
         };
 
         const app = express();

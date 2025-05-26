@@ -44,7 +44,7 @@
 
         #hover-panel {
             background-color: #2a2a2a;
-            padding: 20px;
+            padding: 0;
             overflow-y: auto;
         }
 
@@ -56,25 +56,40 @@
         .filtered-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 10px;
-            font-size: 12px;
+            margin: 0;
+            font-size: 11px;
             table-layout: fixed;
         }
 
         .filtered-table th,
         .filtered-table td {
-            padding: 8px;
+            padding: 4px;
             text-align: left;
             border-bottom: 1px solid #3a3a3a;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            font-size: 11px;
         }
 
         .filtered-table th {
             background-color: #3a3a3a;
             position: sticky;
             top: 0;
+            padding: 4px;
+            border-right: 1px solid #4a4a4a;
+        }
+
+        .filtered-table th:last-child {
+            border-right: none;
+        }
+
+        .filtered-table td {
+            border-right: 1px solid #3a3a3a;
+        }
+
+        .filtered-table td:last-child {
+            border-right: none;
         }
 
         .filtered-table tr:hover {
@@ -82,12 +97,31 @@
         }
 
         .filtered-table td:nth-child(1),
-        .filtered-table td:nth-child(2) {
-            width: 40%;
+        .filtered-table td:nth-child(4) {
+            width: 35%;
         }
 
-        .filtered-table td:nth-child(3) {
-            width: 20%;
+        .filtered-table td:nth-child(2),
+        .filtered-table td:nth-child(3),
+        .filtered-table td:nth-child(5),
+        .filtered-table td:nth-child(6) {
+            width: 3%;
+            text-align: right;
+            color: #888;
+            padding: 4px 2px;
+        }
+
+        .filtered-table th:nth-child(2),
+        .filtered-table th:nth-child(3),
+        .filtered-table th:nth-child(5),
+        .filtered-table th:nth-child(6) {
+            width: 3%;
+            text-align: right;
+            padding: 4px 2px;
+        }
+
+        .filtered-table td:nth-child(7) {
+            width: 21%;
         }
 
         .controls {
@@ -95,39 +129,91 @@
             top: 10px;
             right: 10px;
             z-index: 1000;
-            background-color: #2a2a2a;
-            padding: 10px;
+            background-color: rgba(42, 42, 42, 0.8);
             border-radius: 5px;
             display: flex;
             flex-direction: column;
-            gap: 10px;
         }
 
         .button-group {
             display: flex;
-            gap: 5px;
+            gap: 2px;
+            width: 100%;
+            padding: 5px;
+            background-color: rgba(42, 42, 42, 0.8);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+
+        .button-group button {
+            flex: 1;
         }
 
         .slider-container {
             display: flex;
             flex-direction: column;
-            gap: 5px;
+            gap: 2px;
             color: white;
-            font-size: 12px;
+            font-size: 11px;
+            min-height: 130px;
+        }
+
+        .slider-container label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        .slider-container label span:first-child {
+            flex-shrink: 0;
+        }
+
+        .slider-container label span:last-child {
+            flex-shrink: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            padding: 5px;
+            background-color: rgba(42, 42, 42, 0.8);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            width: 100%;
         }
 
         .slider-container input {
             width: 100%;
+            margin: 0;
+        }
+
+        #histogram {
+            width: 100%;
+            height: 100px;
+            margin-top: 2px;
+        }
+
+        #length-histogram {
+            width: 100%;
+            height: 100px;
+            margin-top: 2px;
         }
 
         button {
             background-color: #3a3a3a;
             color: white;
             border: none;
-            padding: 8px 12px;
-            margin: 0 5px;
-            border-radius: 4px;
+            padding: 4px 8px;
+            margin: 0;
+            border-radius: 3px;
             cursor: pointer;
+            font-size: 11px;
         }
 
         button:hover {
@@ -147,9 +233,19 @@
             <button id="vertical">Vertical</button>
             <button id="horizontal">Horizontal</button>
         </div>
-        <div class="slider-container">
-            <label for="threshold">Similarity Threshold: <span id="threshold-value">0.0</span></label>
-            <input type="range" id="threshold" min="0" max="1" step="0.01" value="0">
+        <div class="slider-group">
+            <div class="slider-container">
+                <label for="threshold">Similarity: <span id="threshold-value">0.0</span> (<span
+                        id="threshold-count">0</span> values)</label>
+                <input type="range" id="threshold" min="0" max="1" step="0.01" value="0">
+                <div id="histogram"></div>
+            </div>
+            <div class="slider-container">
+                <label for="length-threshold">Length: <span id="length-value">0</span> chars (<span
+                        id="length-count">0</span> values)</label>
+                <input type="range" id="length-threshold" min="0" max="1000" step="1" value="0">
+                <div id="length-histogram"></div>
+            </div>
         </div>
     </div>
     <div class="container" id="container">
@@ -160,8 +256,12 @@
             <table class="filtered-table">
                 <thead>
                     <tr>
-                        <th>Row</th>
-                        <th>Column</th>
+                        <th id="row-header">Content 1</th>
+                        <th>Offset 1</th>
+                        <th>Index 1</th>
+                        <th id="col-header">Content 2</th>
+                        <th>Offset 2</th>
+                        <th>Index 2</th>
                         <th>Similarity</th>
                     </tr>
                 </thead>
@@ -180,6 +280,14 @@
         const data = {{ DATA }};
         let nRows = data.rowLabels.length;
         let nCols = data.colLabels.length;
+
+        // Get filenames from the data
+        const rowFile = data.rowFile || 'File 1';
+        const colFile = data.colFile || 'File 2';
+
+        // Update table headers with filenames
+        document.getElementById('row-header').textContent = rowFile;
+        document.getElementById('col-header').textContent = colFile;
 
         // Transpose the matrix if rows > columns to better utilize screen space
         let matrix = data.matrix;
@@ -242,11 +350,137 @@
             showscale: false
         };
 
-        // Function to update heatmap based on threshold
-        function updateHeatmap(threshold) {
-            const filteredMatrix = matrix.map(row =>
-                row.map(val => val >= threshold ? val : null)
+        // Function to compute histogram data
+        function computeHistogramData(matrix) {
+            const values = matrix.flat().filter(val => !isNaN(val));
+            const bins = 50;
+            const min = 0;
+            const max = 1;
+            const binSize = (max - min) / bins;
+
+            const histogram = new Array(bins).fill(0);
+            values.forEach(val => {
+                const binIndex = Math.min(Math.floor((val - min) / binSize), bins - 1);
+                histogram[binIndex]++;
+            });
+
+            return {
+                x: Array.from({ length: bins }, (_, i) => min + (i + 0.5) * binSize),
+                y: histogram
+            };
+        }
+
+        // Create histogram
+        const histData = computeHistogramData(matrix);
+        const histogramTrace = {
+            x: histData.x,
+            y: histData.y,
+            type: 'bar',
+            marker: {
+                color: '#4a4a4a'
+            },
+            showlegend: false
+        };
+
+        const histogramLayout = {
+            paper_bgcolor: '#2a2a2a',
+            plot_bgcolor: '#2a2a2a',
+            font: { color: '#ffffff' },
+            margin: { l: 20, r: 20, t: 10, b: 20 },
+            xaxis: {
+                range: [0, 1],
+                showgrid: false,
+                zeroline: false,
+                showticklabels: false
+            },
+            yaxis: {
+                showgrid: false,
+                zeroline: false,
+                showticklabels: false
+            }
+        };
+
+        Plotly.newPlot('histogram', [histogramTrace], histogramLayout, {
+            displayModeBar: false,
+            responsive: true
+        });
+
+        // Function to compute histogram data for lengths
+        function computeLengthHistogramData() {
+            const lengths = [...rowFull, ...colFull].map(text => text.length);
+            const maxLength = Math.max(...lengths);
+            const bins = 50;
+            const binSize = maxLength / bins;
+
+            const histogram = new Array(bins).fill(0);
+            lengths.forEach(len => {
+                const binIndex = Math.min(Math.floor(len / binSize), bins - 1);
+                histogram[binIndex]++;
+            });
+
+            return {
+                x: Array.from({ length: bins }, (_, i) => (i + 0.5) * binSize),
+                y: histogram,
+                maxLength
+            };
+        }
+
+        // Create length histogram
+        const lengthHistData = computeLengthHistogramData();
+        const lengthHistogramTrace = {
+            x: lengthHistData.x,
+            y: lengthHistData.y,
+            type: 'bar',
+            marker: {
+                color: '#4a4a4a'
+            },
+            showlegend: false
+        };
+
+        const lengthHistogramLayout = {
+            paper_bgcolor: '#2a2a2a',
+            plot_bgcolor: '#2a2a2a',
+            font: { color: '#ffffff' },
+            margin: { l: 20, r: 20, t: 10, b: 20 },
+            xaxis: {
+                range: [0, lengthHistData.maxLength],
+                showgrid: false,
+                zeroline: false,
+                showticklabels: false
+            },
+            yaxis: {
+                showgrid: false,
+                zeroline: false,
+                showticklabels: false
+            }
+        };
+
+        Plotly.newPlot('length-histogram', [lengthHistogramTrace], lengthHistogramLayout, {
+            displayModeBar: false,
+            responsive: true
+        });
+
+        // Function to update heatmap based on thresholds
+        function updateHeatmap(simThreshold, lenThreshold) {
+            const filteredMatrix = matrix.map((row, i) =>
+                row.map((val, j) => {
+                    const rowLen = rowFull[i].length;
+                    const colLen = colFull[j].length;
+                    return (val >= simThreshold && rowLen >= lenThreshold && colLen >= lenThreshold) ? val : null;
+                })
             );
+
+            // Count values above thresholds
+            const aboveThreshold = filteredMatrix.flat().filter(val => val !== null).length;
+            document.getElementById('threshold-count').textContent = aboveThreshold;
+
+            // Count values above length threshold
+            const aboveLengthThreshold = filteredMatrix.flat().filter((val, idx) => {
+                const i = Math.floor(idx / nCols);
+                const j = idx % nCols;
+                return rowFull[i].length >= lenThreshold && colFull[j].length >= lenThreshold;
+            }).length;
+            document.getElementById('length-count').textContent = aboveLengthThreshold;
 
             // Update hover text to only show for non-filtered cells
             const filteredHoverText = hoverText.map((row, i) =>
@@ -259,7 +493,41 @@
                 text: [filteredHoverText]
             });
 
-            // Collect all correlations above threshold
+            // Update similarity histogram with threshold line
+            const shapes = [{
+                type: 'line',
+                x0: simThreshold,
+                x1: simThreshold,
+                y0: 0,
+                y1: Math.max(...histData.y),
+                line: {
+                    color: '#ff0000',
+                    width: 2
+                }
+            }];
+
+            Plotly.relayout('histogram', {
+                shapes: shapes
+            });
+
+            // Update length histogram with threshold line
+            const lengthShapes = [{
+                type: 'line',
+                x0: lenThreshold,
+                x1: lenThreshold,
+                y0: 0,
+                y1: Math.max(...lengthHistData.y),
+                line: {
+                    color: '#ff0000',
+                    width: 2
+                }
+            }];
+
+            Plotly.relayout('length-histogram', {
+                shapes: lengthShapes
+            });
+
+            // Collect all correlations above thresholds
             const correlations = [];
             for (let i = 0; i < nRows; i++) {
                 for (let j = 0; j < nCols; j++) {
@@ -267,6 +535,10 @@
                         correlations.push({
                             row: rowFull[i],
                             col: colFull[j],
+                            rowLen: rowFull[i].length,
+                            rowOff: i,
+                            colLen: colFull[j].length,
+                            colOff: j,
                             similarity: filteredMatrix[i][j]
                         });
                     }
@@ -285,7 +557,11 @@
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td title="${corr.row}">${corr.row}</td>
+                    <td>${corr.rowOff}</td>
+                    <td>${corr.rowLen}</td>
                     <td title="${corr.col}">${corr.col}</td>
+                    <td>${corr.colOff}</td>
+                    <td>${corr.colLen}</td>
                     <td>${corr.similarity.toFixed(4)}</td>
                 `;
                 tbody.appendChild(row);
@@ -358,15 +634,26 @@
             button.addEventListener('click', () => setLayout(button.id));
         });
 
-        // Add threshold slider event listener
+        // Add threshold slider event listeners
         const thresholdSlider = document.getElementById('threshold');
         const thresholdValue = document.getElementById('threshold-value');
+        const lengthSlider = document.getElementById('length-threshold');
+        const lengthValue = document.getElementById('length-value');
 
         thresholdSlider.addEventListener('input', (e) => {
             const value = parseFloat(e.target.value);
             thresholdValue.textContent = value.toFixed(2);
-            updateHeatmap(value);
+            updateHeatmap(value, parseInt(lengthSlider.value));
         });
+
+        lengthSlider.addEventListener('input', (e) => {
+            const value = parseInt(e.target.value);
+            lengthValue.textContent = value;
+            updateHeatmap(parseFloat(thresholdSlider.value), value);
+        });
+
+        // Initial update
+        updateHeatmap(0, 0);
     </script>
 </body>
 

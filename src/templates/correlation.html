@@ -569,10 +569,13 @@
             document.getElementById('threshold-count').textContent = aboveThreshold;
             document.getElementById('length-count').textContent = aboveLengthThreshold;
 
-            // Update hover text to only show for non-filtered cells
+
             const filteredHoverText = hoverText.map((row, i) =>
-                row.map((text, j) => filteredMatrix[i][j] !== null ? text : '')
+                row.map((text, j) => filteredMatrix[i][j] !== null ? text : undefined)
             );
+
+            console.log(filteredHoverText);
+
 
             // Update the plot with all necessary properties
             Plotly.react('plot', [{

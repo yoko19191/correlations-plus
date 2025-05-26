@@ -48,6 +48,48 @@
             overflow-y: auto;
         }
 
+        #hover-content {
+            display: none;
+            /* Hide the hover content div */
+        }
+
+        .filtered-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 12px;
+            table-layout: fixed;
+        }
+
+        .filtered-table th,
+        .filtered-table td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #3a3a3a;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .filtered-table th {
+            background-color: #3a3a3a;
+            position: sticky;
+            top: 0;
+        }
+
+        .filtered-table tr:hover {
+            background-color: #3a3a3a;
+        }
+
+        .filtered-table td:nth-child(1),
+        .filtered-table td:nth-child(2) {
+            width: 40%;
+        }
+
+        .filtered-table td:nth-child(3) {
+            width: 20%;
+        }
+
         .controls {
             position: fixed;
             top: 10px;
@@ -56,6 +98,26 @@
             background-color: #2a2a2a;
             padding: 10px;
             border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 5px;
+        }
+
+        .slider-container {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            color: white;
+            font-size: 12px;
+        }
+
+        .slider-container input {
+            width: 100%;
         }
 
         button {
@@ -80,16 +142,32 @@
 
 <body>
     <div class="controls">
-        <button id="single" class="active">Single</button>
-        <button id="vertical">Vertical</button>
-        <button id="horizontal">Horizontal</button>
+        <div class="button-group">
+            <button id="single" class="active">Single</button>
+            <button id="vertical">Vertical</button>
+            <button id="horizontal">Horizontal</button>
+        </div>
+        <div class="slider-container">
+            <label for="threshold">Similarity Threshold: <span id="threshold-value">0.0</span></label>
+            <input type="range" id="threshold" min="0" max="1" step="0.01" value="0">
+        </div>
     </div>
     <div class="container" id="container">
         <div class="panel">
             <div id="plot"></div>
         </div>
         <div class="panel" id="hover-panel" style="display: none;">
-            <div id="hover-content"></div>
+            <table class="filtered-table">
+                <thead>
+                    <tr>
+                        <th>Row</th>
+                        <th>Column</th>
+                        <th>Similarity</th>
+                    </tr>
+                </thead>
+                <tbody id="filtered-correlations">
+                </tbody>
+            </table>
         </div>
     </div>
     <script>
@@ -151,14 +229,68 @@
             x: colLabels,
             y: rowLabels,
             type: 'heatmap',
-            colorscale: 'Inferno',
+            colorscale: 'RdBu',
             hoverongaps: false,
             hoverinfo: 'text',
             text: hoverText,
             xgap: 1,
             ygap: 1,
+            xmin: 0,
+            xmax: 1,
+            ymin: 0,
+            ymax: 1,
             showscale: false
         };
+
+        // Function to update heatmap based on threshold
+        function updateHeatmap(threshold) {
+            const filteredMatrix = matrix.map(row =>
+                row.map(val => val >= threshold ? val : null)
+            );
+
+            // Update hover text to only show for non-filtered cells
+            const filteredHoverText = hoverText.map((row, i) =>
+                row.map((text, j) => filteredMatrix[i][j] !== null ? text : '')
+            );
+
+            // Update the plot
+            Plotly.update('plot', {
+                z: [filteredMatrix],
+                text: [filteredHoverText]
+            });
+
+            // Collect all correlations above threshold
+            const correlations = [];
+            for (let i = 0; i < nRows; i++) {
+                for (let j = 0; j < nCols; j++) {
+                    if (filteredMatrix[i][j] !== null) {
+                        correlations.push({
+                            row: rowFull[i],
+                            col: colFull[j],
+                            similarity: filteredMatrix[i][j]
+                        });
+                    }
+                }
+            }
+
+            // Sort by similarity in ascending order and take bottom 100
+            correlations.sort((a, b) => a.similarity - b.similarity);
+            const bottomCorrelations = correlations.slice(0, 100);
+
+            // Update the filtered correlations table
+            const tbody = document.getElementById('filtered-correlations');
+            tbody.innerHTML = '';
+
+            bottomCorrelations.forEach(corr => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td title="${corr.row}">${corr.row}</td>
+                    <td title="${corr.col}">${corr.col}</td>
+                    <td>${corr.similarity.toFixed(4)}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
 
         const layout = {
             paper_bgcolor: '#1a1a1a',
@@ -195,8 +327,7 @@
 
         // Handle hover events
         document.getElementById('plot').on('plotly_hover', function (data) {
-            const hoverContent = document.getElementById('hover-content');
-            hoverContent.innerHTML = data.points[0].text;
+            // Remove hover text handling since we don't need it anymore
         });
 
         // Handle layout switching
@@ -225,6 +356,16 @@
 
         buttons.forEach(button => {
             button.addEventListener('click', () => setLayout(button.id));
+        });
+
+        // Add threshold slider event listener
+        const thresholdSlider = document.getElementById('threshold');
+        const thresholdValue = document.getElementById('threshold-value');
+
+        thresholdSlider.addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            thresholdValue.textContent = value.toFixed(2);
+            updateHeatmap(value);
         });
     </script>
 </body>

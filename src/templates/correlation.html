@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Embedding Correlations</title>
+    <script src="https://cdn.plot.ly/plotly-2.29.0.min.js"></script>
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            width: 100vw;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+        }
+
+        .vertical {
+            flex-direction: column;
+        }
+
+        .horizontal {
+            flex-direction: row;
+        }
+
+        .panel {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #plot {
+            width: 100%;
+            height: 100%;
+        }
+
+        #hover-panel {
+            background-color: #2a2a2a;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .controls {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            background-color: #2a2a2a;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        button {
+            background-color: #3a3a3a;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            margin: 0 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #4a4a4a;
+        }
+
+        button.active {
+            background-color: #5a5a5a;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="controls">
+        <button id="single" class="active">Single</button>
+        <button id="vertical">Vertical</button>
+        <button id="horizontal">Horizontal</button>
+    </div>
+    <div class="container" id="container">
+        <div class="panel">
+            <div id="plot"></div>
+        </div>
+        <div class="panel" id="hover-panel" style="display: none;">
+            <div id="hover-content"></div>
+        </div>
+    </div>
+    <script>
+        // Helper function to wrap text
+        function wrapText(text, maxLen = 50) {
+            if (text.length <= maxLen) return text;
+            return text.slice(0, maxLen) + '<br>' + wrapText(text.slice(maxLen), maxLen);
+        }
+
+        const data = {{ DATA }};
+        let nRows = data.rowLabels.length;
+        let nCols = data.colLabels.length;
+
+        // Transpose the matrix if rows > columns to better utilize screen space
+        let matrix = data.matrix;
+        let rowLabels = data.rowLabels;
+        let colLabels = data.colLabels;
+        let rowFull = data.rowFull;
+        let colFull = data.colFull;
+
+        if (nRows > nCols) {
+            // Transpose the matrix
+            matrix = matrix[0].map((_, i) => matrix.map(row => row[i]));
+            [rowLabels, colLabels] = [colLabels, rowLabels];
+            [rowFull, colFull] = [colFull, rowFull];
+            [nRows, nCols] = [nCols, nRows];
+        }
+
+        // Build hover text with full chunk text, wrapped if too long
+        const hoverText = [];
+        for (let i = 0; i < nRows; i++) {
+            hoverText[i] = [];
+            for (let j = 0; j < nCols; j++) {
+                hoverText[i][j] = `Row: ${wrapText(rowFull[i])}<br>Col: ${wrapText(colFull[j])}<br>Similarity: ${matrix[i][j].toFixed(4)}`;
+            }
+        }
+
+        // Calculate cell size based on screen dimensions
+        function calculateCellSize() {
+            const plotContainer = document.getElementById('plot').parentElement;
+            const containerWidth = plotContainer.clientWidth;
+            const containerHeight = plotContainer.clientHeight;
+
+            return Math.min(
+                containerWidth / nCols,
+                containerHeight / nRows
+            );
+        }
+
+        function updatePlotSize() {
+            const cellSize = calculateCellSize();
+            layout.width = nCols * cellSize;
+            layout.height = nRows * cellSize;
+            Plotly.relayout('plot', layout);
+        }
+
+        const trace = {
+            z: matrix,
+            x: colLabels,
+            y: rowLabels,
+            type: 'heatmap',
+            colorscale: 'Inferno',
+            hoverongaps: false,
+            hoverinfo: 'text',
+            text: hoverText,
+            xgap: 1,
+            ygap: 1,
+            showscale: false
+        };
+
+        const layout = {
+            paper_bgcolor: '#1a1a1a',
+            plot_bgcolor: '#1a1a1a',
+            font: { color: '#ffffff' },
+            xaxis: {
+                showticklabels: false,
+                showgrid: false,
+                zeroline: false,
+                autorange: true,
+                fixedrange: true,
+                showline: false
+            },
+            yaxis: {
+                showticklabels: false,
+                showgrid: false,
+                zeroline: false,
+                autorange: 'reversed',
+                fixedrange: true,
+                showline: false
+            },
+            autosize: true,
+            margin: { l: 0, r: 0, t: 0, b: 0 },
+            width: nCols * calculateCellSize(),
+            height: nRows * calculateCellSize(),
+            yaxis_scaleanchor: 'x',
+            yaxis_scaleratio: 1
+        };
+
+        Plotly.newPlot('plot', [trace], layout, { responsive: true });
+
+        // Handle window resize
+        window.addEventListener('resize', updatePlotSize);
+
+        // Handle hover events
+        document.getElementById('plot').on('plotly_hover', function (data) {
+            const hoverContent = document.getElementById('hover-content');
+            hoverContent.innerHTML = data.points[0].text;
+        });
+
+        // Handle layout switching
+        const container = document.getElementById('container');
+        const hoverPanel = document.getElementById('hover-panel');
+        const buttons = document.querySelectorAll('.controls button');
+
+        function setLayout(layout) {
+            buttons.forEach(btn => btn.classList.remove('active'));
+            document.getElementById(layout).classList.add('active');
+
+            container.className = 'container';
+            hoverPanel.style.display = 'none';
+
+            if (layout === 'vertical') {
+                container.classList.add('vertical');
+                hoverPanel.style.display = 'block';
+            } else if (layout === 'horizontal') {
+                container.classList.add('horizontal');
+                hoverPanel.style.display = 'block';
+            }
+
+            // Update plot size after layout change
+            setTimeout(updatePlotSize, 0);
+        }
+
+        buttons.forEach(button => {
+            button.addEventListener('click', () => setLayout(button.id));
+        });
+    </script>
+</body>
+
+</html>

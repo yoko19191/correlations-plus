@@ -35,17 +35,58 @@
             flex: 1;
             position: relative;
             overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
         #plot {
             width: 100%;
             height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
         #hover-panel {
             background-color: #2a2a2a;
             padding: 0;
             overflow-y: auto;
+        }
+
+        /* Only apply 6:4 ratio in split views */
+        .vertical .panel:first-child,
+        .horizontal .panel:first-child {
+            flex: 0.6;
+        }
+
+        .vertical #hover-panel,
+        .horizontal #hover-panel {
+            flex: 0.4;
+        }
+
+        /* Maximize heatmap space in horizontal view */
+        .horizontal #plot {
+            width: 100%;
+            height: 100%;
+            min-width: 0;
+            min-height: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .horizontal .panel:first-child {
+            min-width: 0;
+            min-height: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .horizontal #plot>div {
+            width: 100% !important;
+            height: 100% !important;
         }
 
         #hover-content {
@@ -258,10 +299,10 @@
                     <tr>
                         <th id="row-header">Content 1</th>
                         <th>Offset 1</th>
-                        <th>Index 1</th>
+                        <th>Length 1</th>
                         <th id="col-header">Content 2</th>
                         <th>Offset 2</th>
-                        <th>Index 2</th>
+                        <th>Length 2</th>
                         <th>Similarity</th>
                     </tr>
                 </thead>
@@ -273,8 +314,14 @@
     <script>
         // Helper function to wrap text
         function wrapText(text, maxLen = 50) {
-            if (text.length <= maxLen) return text;
-            return text.slice(0, maxLen) + '<br>' + wrapText(text.slice(maxLen), maxLen);
+            if (text.length <= maxLen) return text.trim();
+            const remaining = text.length - maxLen;
+            return text.slice(0, maxLen).trim() + ` (...${remaining} chars)`;
+        }
+
+        // Helper function to format hover text
+        function formatHoverText(row, col, rowOff, rowLen, colOff, colLen, similarity) {
+            return `[R${rowOff}: ${rowLen}]: ${wrapText(row)}<br>[C${colOff}: ${colLen}]: ${wrapText(col)}<br>S(${rowOff},${colOff}): ${similarity.toFixed(4)}`;
         }
 
         const data = {{ DATA }};
@@ -309,7 +356,15 @@
         for (let i = 0; i < nRows; i++) {
             hoverText[i] = [];
             for (let j = 0; j < nCols; j++) {
-                hoverText[i][j] = `Row: ${wrapText(rowFull[i])}<br>Col: ${wrapText(colFull[j])}<br>Similarity: ${matrix[i][j].toFixed(4)}`;
+                hoverText[i][j] = formatHoverText(
+                    rowFull[i],
+                    colFull[j],
+                    i,
+                    rowFull[i].length,
+                    j,
+                    colFull[j].length,
+                    matrix[i][j]
+                );
             }
         }
 
@@ -334,8 +389,19 @@
 
         function updatePlotSize() {
             const { cellSize, newWidth, newHeight } = calculateCellSize();
-            layout.width = newWidth;
-            layout.height = newHeight;
+            const isHorizontal = container.classList.contains('horizontal');
+
+            if (isHorizontal) {
+                // In horizontal mode, use the full container size
+                const container = document.getElementById('plot').parentElement;
+                layout.width = container.clientWidth;
+                layout.height = container.clientHeight;
+            } else {
+                // In other modes, use calculated size
+                layout.width = newWidth;
+                layout.height = newHeight;
+            }
+
             Plotly.relayout('plot', layout);
         }
 
@@ -348,8 +414,8 @@
             hoverongaps: false,
             hoverinfo: 'text',
             text: hoverText,
-            xgap: 1,
-            ygap: 1,
+            xgap: 0.2,
+            ygap: 0.2,
             xmin: 0,
             xmax: 1,
             ymin: 0,
@@ -409,7 +475,8 @@
 
         Plotly.newPlot('histogram', [histogramTrace], histogramLayout, {
             displayModeBar: false,
-            responsive: true
+            responsive: true,
+            staticPlot: true
         });
 
         // Function to compute histogram data for lengths
@@ -464,7 +531,8 @@
 
         Plotly.newPlot('length-histogram', [lengthHistogramTrace], lengthHistogramLayout, {
             displayModeBar: false,
-            responsive: true
+            responsive: true,
+            staticPlot: true
         });
 
         // Function to update heatmap based on thresholds
@@ -582,7 +650,9 @@
                 zeroline: false,
                 autorange: true,
                 fixedrange: true,
-                showline: false
+                showline: false,
+                scaleanchor: 'y',
+                scaleratio: 1
             },
             yaxis: {
                 showticklabels: false,
@@ -595,9 +665,7 @@
             autosize: true,
             margin: { l: 0, r: 0, t: 0, b: 0 },
             width: nCols * calculateCellSize().cellSize,
-            height: nRows * calculateCellSize().cellSize,
-            yaxis_scaleanchor: 'x',
-            yaxis_scaleratio: 1
+            height: nRows * calculateCellSize().cellSize
         };
 
         Plotly.newPlot('plot', [trace], layout, { responsive: true });

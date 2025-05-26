@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Embedding Correlations</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            width: 100vw;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+        }
+
+        .vertical {
+            flex-direction: column;
+        }
+
+        .horizontal {
+            flex-direction: row;
+        }
+
+        .panel {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+        }
+
+        #heatmap {
+            width: 100%;
+            height: 100%;
+        }
+
+        #hover-panel {
+            background-color: #2a2a2a;
+            padding: 0;
+            overflow-y: auto;
+        }
+
+        /* Only apply 6:4 ratio in split views */
+        .vertical .panel:first-child,
+        .horizontal .panel:first-child {
+            flex: 0.6;
+        }
+
+        .vertical #hover-panel,
+        .horizontal #hover-panel {
+            flex: 0.4;
+        }
+
+        .filtered-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0;
+            font-size: 11px;
+            table-layout: fixed;
+        }
+
+        .filtered-table th,
+        .filtered-table td {
+            padding: 4px;
+            text-align: left;
+            border-bottom: 1px solid #3a3a3a;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 11px;
+        }
+
+        .filtered-table th {
+            background-color: #3a3a3a;
+            position: sticky;
+            top: 0;
+            padding: 4px;
+            border-right: 1px solid #4a4a4a;
+        }
+
+        .filtered-table th:last-child {
+            border-right: none;
+        }
+
+        .filtered-table td {
+            border-right: 1px solid #3a3a3a;
+        }
+
+        .filtered-table td:last-child {
+            border-right: none;
+        }
+
+        .filtered-table tr:hover {
+            background-color: #3a3a3a;
+        }
+
+        .filtered-table td:nth-child(1),
+        .filtered-table td:nth-child(4) {
+            width: 35%;
+        }
+
+        .filtered-table td:nth-child(2),
+        .filtered-table td:nth-child(3),
+        .filtered-table td:nth-child(5),
+        .filtered-table td:nth-child(6) {
+            width: 3%;
+            text-align: right;
+            color: #888;
+            padding: 4px 2px;
+            white-space: nowrap;
+            overflow: visible;
+            text-overflow: clip;
+        }
+
+        .filtered-table th:nth-child(2),
+        .filtered-table th:nth-child(3),
+        .filtered-table th:nth-child(5),
+        .filtered-table th:nth-child(6) {
+            width: 3%;
+            text-align: right;
+            padding: 4px 2px;
+            white-space: nowrap;
+            overflow: visible;
+            text-overflow: clip;
+        }
+
+        .filtered-table td:nth-child(7) {
+            width: 10%;
+            text-align: right;
+        }
+
+        .filtered-table th:nth-child(7) {
+            width: 10%;
+            text-align: right;
+        }
+
+        .controls {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            border-radius: 5px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            cursor: move;
+            width: 250px;
+            box-sizing: border-box;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 2px;
+            width: 100%;
+            padding: 5px;
+            background-color: rgba(42, 42, 42, 0.7);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            box-sizing: border-box;
+        }
+
+        .button-group button {
+            flex: 1;
+            min-width: 0;
+            box-sizing: border-box;
+        }
+
+        .drawing-mode {
+            background-color: #ff4444 !important;
+        }
+
+        .selection-panel {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            background-color: rgba(42, 42, 42, 0.8);
+            border-radius: 5px;
+            padding: 10px 10px 12px 10px;
+            display: none;
+            width: 400px;
+            max-height: 300px;
+            overflow-y: auto;
+            cursor: move;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            box-sizing: border-box;
+        }
+
+        .selection-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .selection-panel h3 {
+            margin: 0;
+            font-size: 14px;
+            user-select: none;
+            flex: 1;
+            text-align: left;
+        }
+
+        .selection-panel .close-btn {
+            background: #444;
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            font-size: 16px;
+            line-height: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 8px;
+            transition: background 0.2s;
+        }
+
+        .selection-panel .close-btn:hover {
+            background: #ff4444;
+        }
+
+        .selection-panel-content {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .selection-panel label {
+            font-size: 12px;
+            user-select: none;
+            margin-bottom: 2px;
+            margin-left: 2px;
+        }
+
+        .selection-panel textarea {
+            width: 100%;
+            min-width: 0;
+            height: 80px;
+            margin: 0;
+            background-color: #2a2a2a;
+            color: white;
+            border: 1px solid #3a3a3a;
+            border-radius: 3px;
+            padding: 5px;
+            resize: vertical;
+            box-sizing: border-box;
+            display: block;
+        }
+
+        .selection-panel .panel-section {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            margin-bottom: 6px;
+        }
+
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            padding: 5px;
+            background-color: rgba(42, 42, 42, 0.7);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .slider-container {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            color: white;
+            font-size: 11px;
+            min-height: 130px;
+            background-color: rgba(42, 42, 42, 0.7);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            padding: 5px;
+            border-radius: 3px;
+            box-sizing: border-box;
+        }
+
+        .slider-container label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        .slider-container label span:first-child {
+            flex-shrink: 0;
+        }
+
+        .slider-container label span:last-child {
+            flex-shrink: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .slider-container input {
+            width: 100%;
+            margin: 0;
+        }
+
+        #histogram,
+        #length-histogram {
+            width: 100%;
+            height: 100px;
+            margin-top: 2px;
+        }
+
+        button {
+            background-color: #3a3a3a;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            margin: 0;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        button:hover {
+            background-color: #4a4a4a;
+        }
+
+        button.active {
+            background-color: #5a5a5a;
+        }
+
+        .tooltip {
+            position: absolute;
+            background-color: rgba(42, 42, 42, 0.9);
+            color: white;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 1000;
+            max-width: 300px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="controls">
+        <div class="button-group">
+            <button id="single" class="active">Single</button>
+            <button id="vertical">Vertical</button>
+            <button id="horizontal">Horizontal</button>
+        </div>
+        <div class="slider-group">
+            <div class="slider-container">
+                <label for="threshold">Similarity: <span id="threshold-value">0.0</span> (<span
+                        id="threshold-count">0</span> values)</label>
+                <input type="range" id="threshold" min="0" max="1" step="0.01" value="0">
+                <div id="histogram"></div>
+            </div>
+            <div class="slider-container">
+                <label for="length-threshold">Length: <span id="length-value">0</span> chars (<span
+                        id="length-count">0</span> values)</label>
+                <input type="range" id="length-threshold" min="0" max="1000" step="1" value="0">
+                <div id="length-histogram"></div>
+            </div>
+        </div>
+    </div>
+    <div class="container" id="container">
+        <div class="panel">
+            <div id="heatmap"></div>
+        </div>
+        <div class="panel" id="hover-panel" style="display: none;">
+            <table class="filtered-table">
+                <thead>
+                    <tr>
+                        <th id="row-header">Content 1</th>
+                        <th>Offset 1</th>
+                        <th>Length 1</th>
+                        <th id="col-header">Content 2</th>
+                        <th>Offset 2</th>
+                        <th>Length 2</th>
+                        <th>Similarity</th>
+                    </tr>
+                </thead>
+                <tbody id="filtered-correlations"></tbody>
+            </table>
+        </div>
+    </div>
+    <div class="selection-panel" id="selection-panel">
+        <div class="selection-panel-header">
+            <h3>Selected Area</h3>
+            <button class="close-btn" id="close-selection" title="Close">&times;</button>
+        </div>
+        <div class="selection-panel-content">
+            <div class="panel-section">
+                <label for="row-chunks" id="row-chunks-label"></label>
+                <textarea id="row-chunks" readonly></textarea>
+            </div>
+            <div class="panel-section">
+                <label for="col-chunks" id="col-chunks-label"></label>
+                <textarea id="col-chunks" readonly></textarea>
+            </div>
+        </div>
+    </div>
+    <div class="tooltip" style="display: none;"></div>
+    <script>
+        // Helper function to wrap text
+        function wrapText(text, maxLen = 50) {
+            if (text.length <= maxLen) return text.trim();
+            const remaining = text.length - maxLen;
+            return text.slice(0, maxLen).trim() + ` (...${remaining} chars)`;
+        }
+
+        // Helper function to format hover text
+        function formatHoverText(row, col, rowOff, rowLen, colOff, colLen, similarity) {
+            return `[X${colOff}: ${colLen}]: ${wrapText(col)}\n[Y${rowOff}: ${rowLen}]: ${wrapText(row)}\nS(X${colOff}, Y${rowOff}): ${similarity.toFixed(4)}`;
+        }
+
+        // Parse data from template
+        const data = {{ DATA }};
+        let nRows = data.rowLabels.length;
+        let nCols = data.colLabels.length;
+
+        // Get filenames from the data
+        const rowFile = data.rowFile || 'File 1';
+        const colFile = data.colFile || 'File 2';
+
+        // Update table headers with filenames
+        document.getElementById('row-header').textContent = rowFile;
+        document.getElementById('col-header').textContent = colFile;
+
+        // Transpose the matrix if rows > columns to better utilize screen space
+        let matrix = data.matrix;
+        let rowLabels = data.rowLabels;
+        let colLabels = data.colLabels;
+        let rowFull = data.rowFull;
+        let colFull = data.colFull;
+
+        if (nRows > nCols) {
+            matrix = matrix[0].map((_, i) => matrix.map(row => row[i]));
+            [rowLabels, colLabels] = [colLabels, rowLabels];
+            [rowFull, colFull] = [colFull, rowFull];
+            [nRows, nCols] = [nCols, nRows];
+        }
+
+        // Create color scale
+        const colorScale = d3.scaleSequential()
+            .domain([1, 0])  // Inverted domain to reverse the colormap
+            .interpolator(d3.interpolateRdBu);
+
+        // Create tooltip
+        const tooltip = d3.select('.tooltip');
+
+        // Create heatmap
+        function createHeatmap() {
+            const container = d3.select('#heatmap');
+            const containerWidth = container.node().getBoundingClientRect().width - 20; // Subtract padding
+            const containerHeight = container.node().getBoundingClientRect().height - 20; // Subtract padding
+
+            // Calculate cell size to ensure squares
+            const maxCellWidth = containerWidth / nCols;
+            const maxCellHeight = containerHeight / nRows;
+            const cellSize = Math.min(maxCellWidth, maxCellHeight);
+
+            // Calculate total width and height to maintain square cells
+            const width = cellSize * nCols;
+            const height = cellSize * nRows;
+
+            // Add padding for labels
+            const padding = { top: 20, right: 20, bottom: 20, left: 20 };
+            const totalWidth = width + padding.left + padding.right;
+            const totalHeight = height + padding.top + padding.bottom;
+
+            const svg = container.append('svg')
+                .attr('width', totalWidth)
+                .attr('height', totalHeight)
+                .style('display', 'block')
+                .style('margin', 'auto')
+                .style('max-width', '100%')
+                .style('max-height', '100%');
+
+            const g = svg.append('g')
+                .attr('transform', `translate(${padding.left},${padding.top})`);
+
+            // Create cells
+            const cells = g.selectAll('rect')
+                .data(d3.range(nRows * nCols))
+                .enter()
+                .append('rect')
+                .attr('x', d => (d % nCols) * cellSize)
+                .attr('y', d => Math.floor(d / nCols) * cellSize)
+                .attr('width', cellSize)
+                .attr('height', cellSize)
+                .style('cursor', 'pointer')
+                .attr('fill', d => {
+                    const i = Math.floor(d / nCols);
+                    const j = d % nCols;
+                    return colorScale(matrix[i][j]);
+                })
+                .on('mouseover', function (event, d) {
+                    const i = Math.floor(d / nCols);
+                    const j = d % nCols;
+                    const value = matrix[i][j];
+                    const rowLen = rowFull[i].length;
+                    const colLen = colFull[j].length;
+                    const simThreshold = parseFloat(document.getElementById('threshold').value);
+                    const lenThreshold = parseInt(document.getElementById('length-threshold').value);
+
+                    // Only show tooltip if cell meets thresholds
+                    if (value >= simThreshold && rowLen >= lenThreshold && colLen >= lenThreshold) {
+                        const text = formatHoverText(
+                            rowFull[i],
+                            colFull[j],
+                            i,
+                            rowLen,
+                            j,
+                            colLen,
+                            value
+                        );
+
+                        tooltip
+                            .style('display', 'block')
+                            .style('left', (event.pageX + 10) + 'px')
+                            .style('top', (event.pageY + 10) + 'px')
+                            .html(text.replace(/\n/g, '<br>'));
+                    }
+                })
+                .on('mouseout', function () {
+                    tooltip.style('display', 'none');
+                });
+
+            // Add x-axis label
+            svg.append('text')
+                .attr('x', totalWidth / 2)
+                .attr('y', 15)
+                .attr('text-anchor', 'middle')
+                .attr('fill', '#ffffff')
+                .attr('font-size', '12px')
+                .text(`X: ${colFile} (${nCols} chunks)`);
+
+            // Add y-axis label
+            svg.append('text')
+                .attr('transform', 'rotate(-90)')
+                .attr('x', -totalHeight / 2)
+                .attr('y', 10)
+                .attr('text-anchor', 'middle')
+                .attr('fill', '#ffffff')
+                .attr('font-size', '12px')
+                .text(`Y: ${rowFile} (${nRows} chunks)`);
+
+            return { svg, g, cells, cellSize, padding };
+        }
+
+        // Create histogram
+        function createHistogram(container, data, domain, threshold = 0) {
+            const width = container.node().getBoundingClientRect().width;
+            const height = container.node().getBoundingClientRect().height;
+
+            const x = d3.scaleLinear()
+                .domain(domain)
+                .range([0, width]);
+
+            const y = d3.scaleLinear()
+                .domain([0, d3.max(data)])
+                .range([height, 0]);
+
+            const svg = container.append('svg')
+                .attr('width', width)
+                .attr('height', height);
+
+            const g = svg.append('g');
+
+            // Create bars
+            const barWidth = width / data.length;
+            g.selectAll('rect')
+                .data(data)
+                .enter()
+                .append('rect')
+                .attr('x', (d, i) => i * barWidth)
+                .attr('y', d => y(d))
+                .attr('width', barWidth - 1)
+                .attr('height', d => height - y(d))
+                .attr('fill', '#4a4a4a');
+
+            // Add threshold line
+            const thresholdLine = g.append('line')
+                .attr('x1', x(threshold))
+                .attr('x2', x(threshold))
+                .attr('y1', 0)
+                .attr('y2', height)
+                .attr('stroke', '#ff0000')
+                .attr('stroke-width', 2);
+
+            return { svg, g, thresholdLine, x, y };
+        }
+
+        // Initialize visualizations
+        const heatmap = createHeatmap();
+
+        // Drawing mode variables
+        let isDrawing = false;
+        let startX, startY;
+        let selectionRect = null;
+        let selectionBBox = null;
+
+        document.getElementById('close-selection').addEventListener('click', function () {
+            document.getElementById('selection-panel').style.display = 'none';
+        });
+
+        function clearSelection() {
+            if (selectionRect) {
+                selectionRect.remove();
+                selectionRect = null;
+                selectionBBox = null;
+            }
+            document.getElementById('selection-panel').style.display = 'none';
+        }
+
+        // Add drawing functionality to heatmap
+        heatmap.svg
+            .on('mousedown', function (event) {
+                // If clicking inside the selection, do nothing (allow drag to start new selection)
+                if (selectionBBox) {
+                    const [mx, my] = d3.pointer(event);
+                    if (
+                        mx >= selectionBBox.x &&
+                        mx <= selectionBBox.x + selectionBBox.width &&
+                        my >= selectionBBox.y &&
+                        my <= selectionBBox.y + selectionBBox.height
+                    ) {
+                        // Allow drag to start new selection
+                    } else {
+                        clearSelection();
+                        return;
+                    }
+                }
+                isDrawing = true;
+                const [x, y] = d3.pointer(event);
+                startX = x;
+                startY = y;
+                if (selectionRect) {
+                    selectionRect.remove();
+                    selectionRect = null;
+                }
+                selectionRect = heatmap.svg.append('rect')
+                    .attr('x', x)
+                    .attr('y', y)
+                    .attr('width', 0)
+                    .attr('height', 0)
+                    .attr('fill', 'rgba(255, 68, 68, 0.2)')
+                    .attr('stroke', '#ff4444')
+                    .attr('stroke-width', 2);
+            })
+            .on('mousemove', function (event) {
+                if (!isDrawing || !selectionRect) return;
+                const [x, y] = d3.pointer(event);
+                const width = x - startX;
+                const height = y - startY;
+                selectionRect
+                    .attr('width', Math.abs(width))
+                    .attr('height', Math.abs(height))
+                    .attr('x', width < 0 ? x : startX)
+                    .attr('y', height < 0 ? y : startY);
+            })
+            .on('mouseup', function (event) {
+                if (!isDrawing || !selectionRect) return;
+                isDrawing = false;
+                const [x, y] = d3.pointer(event);
+                const rect = selectionRect.node().getBBox();
+                selectionBBox = rect;
+                // Convert screen coordinates to cell indices
+                const startRow = Math.floor((rect.y - heatmap.padding.top) / heatmap.cellSize);
+                const endRow = Math.floor((rect.y + rect.height - heatmap.padding.top) / heatmap.cellSize);
+                const startCol = Math.floor((rect.x - heatmap.padding.left) / heatmap.cellSize);
+                const endCol = Math.floor((rect.x + rect.width - heatmap.padding.left) / heatmap.cellSize);
+                // Get selected chunks
+                const selectedRows = rowFull.slice(Math.max(0, startRow), Math.min(nRows, endRow + 1));
+                const selectedCols = colFull.slice(Math.max(0, startCol), Math.min(nCols, endCol + 1));
+                // Update selection panel
+                const rowLabel = `${rowFile} ${selectedRows.length} chunk${selectedRows.length === 1 ? '' : 's'}`;
+                const colLabel = `${colFile} ${selectedCols.length} chunk${selectedCols.length === 1 ? '' : 's'}`;
+                document.getElementById('row-chunks-label').textContent = rowLabel;
+                document.getElementById('col-chunks-label').textContent = colLabel;
+                document.getElementById('row-chunks').value = selectedRows.join('\n\n');
+                document.getElementById('col-chunks').value = selectedCols.join('\n\n');
+                document.getElementById('selection-panel').style.display = 'block';
+            });
+
+        // Compute histograms
+        const simHistogram = d3.histogram()
+            .domain([0, 1])
+            .thresholds(50)(matrix.flat().filter(d => !isNaN(d)));
+
+        const lengthHistogram = d3.histogram()
+            .domain([0, Math.max(...rowFull.map(d => d.length), ...colFull.map(d => d.length))])
+            .thresholds(50)([...rowFull, ...colFull].map(d => d.length));
+
+        const simHist = createHistogram(
+            d3.select('#histogram'),
+            simHistogram.map(d => d.length),
+            [0, 1]
+        );
+
+        const lenHist = createHistogram(
+            d3.select('#length-histogram'),
+            lengthHistogram.map(d => d.length),
+            [0, lengthHistogram[lengthHistogram.length - 1].x1]
+        );
+
+        // Update visualizations based on thresholds
+        function updateVisualization(simThreshold, lenThreshold) {
+            let aboveThreshold = 0;
+            let aboveLengthThreshold = 0;
+            const correlations = [];
+
+            // Update heatmap
+            heatmap.cells
+                .attr('fill', d => {
+                    const i = Math.floor(d / nCols);
+                    const j = d % nCols;
+                    const value = matrix[i][j];
+                    const rowLen = rowFull[i].length;
+                    const colLen = colFull[j].length;
+                    const meetsThresholds = value >= simThreshold && rowLen >= lenThreshold && colLen >= lenThreshold;
+
+                    if (meetsThresholds) {
+                        aboveThreshold++;
+                        correlations.push({
+                            row: rowFull[i],
+                            col: colFull[j],
+                            rowLen,
+                            rowOff: i,
+                            colLen,
+                            colOff: j,
+                            similarity: value
+                        });
+                    }
+                    if (rowLen >= lenThreshold && colLen >= lenThreshold) {
+                        aboveLengthThreshold++;
+                    }
+
+                    return meetsThresholds ? colorScale(value) : '#000000';
+                })
+                .style('cursor', d => {
+                    const i = Math.floor(d / nCols);
+                    const j = d % nCols;
+                    const value = matrix[i][j];
+                    const rowLen = rowFull[i].length;
+                    const colLen = colFull[j].length;
+                    return (value >= simThreshold && rowLen >= lenThreshold && colLen >= lenThreshold) ? 'pointer' : 'default';
+                });
+
+            // Update histograms
+            simHist.thresholdLine
+                .attr('x1', simHist.x(simThreshold))
+                .attr('x2', simHist.x(simThreshold));
+
+            lenHist.thresholdLine
+                .attr('x1', lenHist.x(lenThreshold))
+                .attr('x2', lenHist.x(lenThreshold));
+
+            // Update counts
+            document.getElementById('threshold-count').textContent = aboveThreshold;
+            document.getElementById('length-count').textContent = aboveLengthThreshold;
+
+            // Update table
+            // Sort by how close similarity is to the threshold (but above threshold)
+            correlations.sort((a, b) => (a.similarity - simThreshold) - (b.similarity - simThreshold));
+            const closestCorrelations = correlations.slice(0, 100);
+
+            const tbody = document.getElementById('filtered-correlations');
+            tbody.innerHTML = '';
+
+            closestCorrelations.forEach(corr => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td title="${corr.row}">${corr.row}</td>
+                    <td>${corr.rowOff}</td>
+                    <td>${corr.rowLen}</td>
+                    <td title="${corr.col}">${corr.col}</td>
+                    <td>${corr.colOff}</td>
+                    <td>${corr.colLen}</td>
+                    <td>${corr.similarity.toFixed(4)}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Handle window resize
+        function handleResize() {
+            const container = d3.select('#heatmap');
+            const containerWidth = container.node().getBoundingClientRect().width;
+            const containerHeight = container.node().getBoundingClientRect().height;
+
+            // Calculate cell size to ensure squares
+            const maxCellWidth = containerWidth / nCols;
+            const maxCellHeight = containerHeight / nRows;
+            const cellSize = Math.min(maxCellWidth, maxCellHeight);
+
+            // Calculate total width and height to maintain square cells
+            const width = cellSize * nCols;
+            const height = cellSize * nRows;
+
+            // Add padding for labels
+            const padding = { top: 20, right: 20, bottom: 20, left: 20 };
+            const totalWidth = width + padding.left + padding.right;
+            const totalHeight = height + padding.top + padding.bottom;
+
+            heatmap.svg
+                .attr('width', totalWidth)
+                .attr('height', totalHeight);
+
+            heatmap.g
+                .attr('transform', `translate(${padding.left},${padding.top})`);
+
+            heatmap.cells
+                .attr('x', d => (d % nCols) * cellSize)
+                .attr('y', d => Math.floor(d / nCols) * cellSize)
+                .attr('width', cellSize)
+                .attr('height', cellSize);
+
+            // Update axis labels
+            heatmap.svg.selectAll('text').remove();
+
+            // Add x-axis label
+            heatmap.svg.append('text')
+                .attr('x', totalWidth / 2)
+                .attr('y', 15)
+                .attr('text-anchor', 'middle')
+                .attr('fill', '#ffffff')
+                .attr('font-size', '12px')
+                .text(`${colFile} (${nCols} chunks)`);
+
+            // Add y-axis label
+            heatmap.svg.append('text')
+                .attr('transform', 'rotate(-90)')
+                .attr('x', -totalHeight / 2)
+                .attr('y', 10)
+                .attr('text-anchor', 'middle')
+                .attr('fill', '#ffffff')
+                .attr('font-size', '12px')
+                .text(`${rowFile} (${nRows} chunks)`);
+
+            // Update histograms
+            const simHistContainer = d3.select('#histogram');
+            const lenHistContainer = d3.select('#length-histogram');
+
+            simHist.svg
+                .attr('width', simHistContainer.node().getBoundingClientRect().width)
+                .attr('height', simHistContainer.node().getBoundingClientRect().height);
+
+            lenHist.svg
+                .attr('width', lenHistContainer.node().getBoundingClientRect().width)
+                .attr('height', lenHistContainer.node().getBoundingClientRect().height);
+
+            updateVisualization(
+                parseFloat(document.getElementById('threshold').value),
+                parseInt(document.getElementById('length-threshold').value)
+            );
+        }
+
+        window.addEventListener('resize', handleResize);
+
+        // Handle layout switching
+        const container = document.getElementById('container');
+        const hoverPanel = document.getElementById('hover-panel');
+        const buttons = document.querySelectorAll('.controls button');
+
+        function setLayout(layout) {
+            buttons.forEach(btn => btn.classList.remove('active'));
+            document.getElementById(layout).classList.add('active');
+
+            container.className = 'container';
+            hoverPanel.style.display = 'none';
+
+            if (layout === 'vertical') {
+                container.classList.add('vertical');
+                hoverPanel.style.display = 'block';
+            } else if (layout === 'horizontal') {
+                container.classList.add('horizontal');
+                hoverPanel.style.display = 'block';
+            }
+
+            setTimeout(handleResize, 0);
+        }
+
+        buttons.forEach(button => {
+            button.addEventListener('click', () => setLayout(button.id));
+        });
+
+        // Add threshold slider event listeners
+        const thresholdSlider = document.getElementById('threshold');
+        const thresholdValue = document.getElementById('threshold-value');
+        const lengthSlider = document.getElementById('length-threshold');
+        const lengthValue = document.getElementById('length-value');
+
+        thresholdSlider.addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            thresholdValue.textContent = value.toFixed(2);
+            updateVisualization(value, parseInt(lengthSlider.value));
+        });
+
+        lengthSlider.addEventListener('input', (e) => {
+            const value = parseInt(e.target.value);
+            lengthValue.textContent = value;
+            updateVisualization(parseFloat(thresholdSlider.value), value);
+        });
+
+        // Initial update
+        updateVisualization(0, 0);
+
+        // Make the controls panel draggable
+        (function () {
+            const panel = document.querySelector('.controls');
+            let isDragging = false;
+            let offsetX = 0;
+            let offsetY = 0;
+
+            panel.addEventListener('mousedown', function (e) {
+                // Only start drag if not clicking on a slider or button
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
+                isDragging = true;
+                offsetX = e.clientX - panel.getBoundingClientRect().left;
+                offsetY = e.clientY - panel.getBoundingClientRect().top;
+                panel.style.transition = 'none';
+            });
+
+            document.addEventListener('mousemove', function (e) {
+                if (!isDragging) return;
+                let x = e.clientX - offsetX;
+                let y = e.clientY - offsetY;
+                // Clamp to window bounds
+                x = Math.max(0, Math.min(window.innerWidth - panel.offsetWidth, x));
+                y = Math.max(0, Math.min(window.innerHeight - panel.offsetHeight, y));
+                panel.style.left = x + 'px';
+                panel.style.top = y + 'px';
+                panel.style.right = 'auto';
+            });
+
+            document.addEventListener('mouseup', function () {
+                isDragging = false;
+                panel.style.transition = '';
+            });
+        })();
+
+        // Make the selection panel draggable
+        (function () {
+            const panel = document.getElementById('selection-panel');
+            let isDragging = false;
+            let offsetX = 0;
+            let offsetY = 0;
+
+            panel.addEventListener('mousedown', function (e) {
+                // Only start drag if not clicking on a textarea or button
+                if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON') return;
+                isDragging = true;
+                offsetX = e.clientX - panel.getBoundingClientRect().left;
+                offsetY = e.clientY - panel.getBoundingClientRect().top;
+                panel.style.transition = 'none';
+            });
+
+            document.addEventListener('mousemove', function (e) {
+                if (!isDragging) return;
+                let x = e.clientX - offsetX;
+                let y = e.clientY - offsetY;
+                // Clamp to window bounds
+                x = Math.max(0, Math.min(window.innerWidth - panel.offsetWidth, x));
+                y = Math.max(0, Math.min(window.innerHeight - panel.offsetHeight, y));
+                panel.style.left = x + 'px';
+                panel.style.top = y + 'px';
+            });
+
+            document.addEventListener('mouseup', function () {
+                isDragging = false;
+                panel.style.transition = '';
+            });
+        })();
+    </script>
+</body>
+
+</html>

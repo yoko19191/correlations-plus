@@ -56,7 +56,7 @@ function truncateLabel(text: string, maxLen = 32): string {
 }
 
 function generateHTML(data: CorrelationData): string {
-    const templatePath = path.join(__dirname, '../templates/correlation.html');
+    const templatePath = path.join(__dirname, `../templates/correlation_d3.html`);
     const template = fs.readFileSync(templatePath, 'utf-8');
     return template.replace('{{ DATA }}', JSON.stringify(data));
 }

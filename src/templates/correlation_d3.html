@@ -2,7 +2,7 @@
 <html>
 
 <head>
-    <title>Embedding Correlations</title>
+    <title>Correlations</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         body {
@@ -47,6 +47,16 @@
             user-select: none;
             -webkit-user-select: none;
             -ms-user-select: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #heatmap svg {
+            display: block;
+            margin: auto;
+            max-width: 100%;
+            max-height: 100%;
         }
 
         #hover-panel {
@@ -210,6 +220,9 @@
             transform: translateZ(0);
             will-change: transform;
             backface-visibility: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            -ms-user-select: none;
         }
 
         .mini-heatmap {
@@ -328,6 +341,9 @@
             transform: translateZ(0);
             will-change: transform;
             backface-visibility: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            -ms-user-select: none;
         }
 
         .colormap-group {
@@ -626,8 +642,8 @@
             document.getElementById('spinner').style.display = 'flex';
 
             const container = d3.select('#heatmap');
-            const containerWidth = container.node().getBoundingClientRect().width - 20; // Subtract padding
-            const containerHeight = container.node().getBoundingClientRect().height - 20; // Subtract padding
+            const containerWidth = container.node().getBoundingClientRect().width;
+            const containerHeight = container.node().getBoundingClientRect().height;
 
             // Calculate cell size to ensure squares
             const maxCellWidth = containerWidth / nCols;
@@ -647,9 +663,7 @@
                 .attr('width', totalWidth)
                 .attr('height', totalHeight)
                 .style('display', 'block')
-                .style('margin', 'auto')
-                .style('max-width', '100%')
-                .style('max-height', '100%');
+                .style('margin', 'auto');
 
             const g = svg.append('g')
                 .attr('transform', `translate(${padding.left},${padding.top})`);
@@ -1211,25 +1225,38 @@
 
         // Function to update color scale
         function updateColorScale(colormap) {
+            // Find min and max values in the matrix
+            let minValue = Infinity;
+            let maxValue = -Infinity;
+            for (let i = 0; i < nRows; i++) {
+                for (let j = 0; j < nCols; j++) {
+                    const value = matrix[i][j];
+                    if (!isNaN(value)) {
+                        minValue = Math.min(minValue, value);
+                        maxValue = Math.max(maxValue, value);
+                    }
+                }
+            }
+
             switch (colormap) {
                 case 'viridis':
                     colorScale = d3.scaleSequential()
-                        .domain([1, 0])
-                        .interpolator(d3.interpolateViridis);
+                        .domain([minValue, maxValue])
+                        .interpolator(t => d3.interpolateViridis((t - minValue) / (maxValue - minValue)));
                     break;
                 case 'cividis':
                     colorScale = d3.scaleSequential()
-                        .domain([1, 0])
-                        .interpolator(d3.interpolateCividis);
+                        .domain([minValue, maxValue])
+                        .interpolator(t => d3.interpolateCividis((maxValue - t) / (maxValue - minValue)));
                     break;
                 case 'inferno':
                     colorScale = d3.scaleSequential()
-                        .domain([1, 0])
-                        .interpolator(d3.interpolateInferno);
+                        .domain([minValue, maxValue])
+                        .interpolator(t => d3.interpolateInferno((maxValue - t) / (maxValue - minValue)));
                     break;
                 default: // rdbu
                     colorScale = d3.scaleSequential()
-                        .domain([1, -1])
+                        .domain([minValue, maxValue])
                         .interpolator(d3.interpolateRdBu);
             }
             updateVisualization(

@@ -15,6 +15,8 @@ npm run embed -- https://arxiv.org/pdf/2409.10173 -o v3-arxiv.jsonl -t retrieval
 npm run corr -- v3-blog.jsonl v3-arxiv.jsonl
 ```
 
+`JINA_API_KEY` is used for embedding and reading content from a URL when necessary. You can also [bring your own embeddings](#bring-your-own-embeddings) and just do `npm run corr ...` for visualization.
+
 ## UI Features
 
 The correlation visualization is served on `http://localhost:3000` by default. Here's what you can do:
@@ -142,8 +144,20 @@ npm run embed -- input.txt --dimensions 512
 npm run corr -- output.jsonl
 ```
 
-## Output Format
+## Bring Your Own Embeddings
 
-The tool generates JSONL files where each line contains:
-- `chunk`: The text segment
-- `embedding`: The corresponding embedding vector
+To use `npm run corr`, your data must be in a JSONL file where each line is a JSON object with:
+- `chunk`: The text segment (string)
+- `embedding`: The embedding vector (array of numbers)
+
+Example line:
+```json
+{"chunk": "This is a text segment.", "embedding": [0.123, -0.456, ...]}
+```
+
+If you bring your own embeddings:
+1. Ensure your JSONL file follows the above format.
+2. Each line must have both `chunk` and `embedding` fields.
+3. Place your file where you want and reference it when running `npm run corr`.
+
+No extra metadata is needed; embeddings must be precomputed and stored as arrays of numbers.

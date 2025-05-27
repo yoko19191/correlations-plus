@@ -443,10 +443,46 @@
             max-width: 300px;
             white-space: pre-wrap;
         }
+
+        /* Loading spinner styles */
+        .spinner-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(26, 26, 26, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #ff4444;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
     </style>
 </head>
 
 <body>
+    <div class="spinner-container" id="spinner">
+        <div class="spinner"></div>
+    </div>
     <div class="controls">
         <div class="button-group">
             <button id="single" class="active">Single</button>
@@ -565,6 +601,9 @@
 
         // Create heatmap
         function createHeatmap() {
+            // Show spinner
+            document.getElementById('spinner').style.display = 'flex';
+
             const container = d3.select('#heatmap');
             const containerWidth = container.node().getBoundingClientRect().width - 20; // Subtract padding
             const containerHeight = container.node().getBoundingClientRect().height - 20; // Subtract padding
@@ -659,6 +698,11 @@
                 .attr('fill', '#ffffff')
                 .attr('font-size', '12px')
                 .text(`Y: ${rowFile} (${nRows} chunks)`);
+
+            // Hide spinner after a short delay to ensure smooth rendering
+            setTimeout(() => {
+                document.getElementById('spinner').style.display = 'none';
+            }, 100);
 
             return { svg, g, cells, cellSize, padding };
         }
@@ -921,6 +965,9 @@
 
         // Handle window resize
         function handleResize() {
+            // Show spinner during resize
+            document.getElementById('spinner').style.display = 'flex';
+
             const container = d3.select('#heatmap');
             const containerWidth = container.node().getBoundingClientRect().width;
             const containerHeight = container.node().getBoundingClientRect().height;
@@ -990,6 +1037,11 @@
                 parseFloat(document.getElementById('threshold').value),
                 parseInt(document.getElementById('length-threshold').value)
             );
+
+            // Hide spinner after a short delay
+            setTimeout(() => {
+                document.getElementById('spinner').style.display = 'none';
+            }, 100);
         }
 
         window.addEventListener('resize', handleResize);

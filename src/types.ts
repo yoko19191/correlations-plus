@@ -1,4 +1,20 @@
-export type TaskType = "text-matching" | "retrieval.passage" | "retrieval.query";
+export interface ChunkOptions {
+    type: 'newline' | 'punctuation' | 'characters' | 'regex';
+    value?: string | number;
+}
+
+export type TaskType = 'text-matching' | 'retrieval.passage' | 'retrieval.query';
+
+export interface ReadResponse {
+    data: {
+        title: string;
+        url: string;
+        content: string;
+        usage?: {
+            tokens: number;
+        };
+    };
+}
 
 export interface JinaEmbeddingRequest {
     model: string;
@@ -20,19 +36,14 @@ export interface JinaEmbeddingResponse {
 }
 
 export interface EmbeddingOptions {
-    task?: TaskType;
     dimensions?: number;
     late_chunking?: boolean;
+    task?: TaskType;
 }
 
 export interface EmbeddingResult {
     embeddings: number[][];
     tokens: number;
-}
-
-export interface ChunkOptions {
-    type: 'newline' | 'punctuation' | 'characters' | 'regex';
-    value?: string | number;
 }
 
 export interface EmbeddingOutput {

@@ -2,6 +2,7 @@ import fs from 'fs';
 import { Command } from 'commander';
 import { getEmbeddings } from '../utils/embeddings';
 import { ChunkOptions, TaskType } from '../types';
+import { readUrl } from '../utils/reader';
 
 function chunkText(text: string, options: ChunkOptions): string[] {
     switch (options.type) {
@@ -36,8 +37,8 @@ async function main() {
 
     program
         .name('embed')
-        .description('Embed text from a file')
-        .argument('<file>', 'Input text file path')
+        .description('Embed text from a file or URL')
+        .argument('<input>', 'Input text file path or URL')
         .option('-c, --chunk <type>', 'Chunking type (newline, punctuation, characters, regex)', 'newline')
         .option('-v, --value <value>', 'Value for chunking (number for characters, regex pattern for regex)')
         .option('-d, --dimensions <number>', 'Embedding dimensions', '1024')
@@ -47,13 +48,23 @@ async function main() {
         .parse(process.argv);
 
     const options = program.opts();
-    const inputFile = program.args[0];
-    const outputPath = options.output || `${inputFile}.jsonl`;
-    console.log(options);
+    const input = program.args[0];
 
     try {
-        // Read input file
-        const text = fs.readFileSync(inputFile, 'utf-8');
+        let text: string;
+        let outputPath: string;
+
+        // Check if input is a URL
+        if (input.startsWith('http://') || input.startsWith('https://')) {
+            const { response } = await readUrl(input);
+            text = response.data.content;
+            const domain = new URL(input).hostname.replace(/\./g, '-');
+            outputPath = options.output || `${domain}.jsonl`;
+        } else {
+            // Read input file
+            text = fs.readFileSync(input, 'utf-8');
+            outputPath = options.output || `${input.replace(/[^a-zA-Z0-9]/g, '_')}.jsonl`;
+        }
 
         // Parse chunking options
         const chunkOptions: ChunkOptions = {
@@ -61,15 +72,17 @@ async function main() {
             value: options.value
         };
 
+        console.log(options);
+
         // Chunk the text
         const chunks = chunkText(text, chunkOptions);
         console.log(`Chunked text into ${chunks.length} pieces`);
 
         // Get embeddings
-        const { embeddings } = await getEmbeddings(chunks, undefined, {
+        const { embeddings } = await getEmbeddings(chunks, {
             dimensions: Number(options.dimensions),
             late_chunking: options.lateChunking,
-            task: options.embeddingType
+            task: options.taskType
         });
 
         // Write JSON Lines output

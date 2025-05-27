@@ -1,7 +1,6 @@
 import {
     JinaEmbeddingRequest,
     JinaEmbeddingResponse,
-    TokenTracker,
     EmbeddingOptions,
     EmbeddingResult
 } from '../types';
@@ -13,7 +12,6 @@ const MAX_RETRIES = 3;
 
 export async function getEmbeddings(
     texts: string[],
-    tokenTracker?: TokenTracker,
     options: EmbeddingOptions = {}
 ): Promise<EmbeddingResult> {
     console.log(`[embeddings] Embedding ${texts.length} texts`);
@@ -48,14 +46,6 @@ export async function getEmbeddings(
         allEmbeddings.push(...batchEmbeddings);
         totalTokens += batchTokens;
         console.log(`[embeddings] Batch ${currentBatch} complete. Tokens used: ${batchTokens}, total so far: ${totalTokens}`);
-    }
-
-    if (tokenTracker) {
-        tokenTracker.trackUsage('embeddings', {
-            promptTokens: totalTokens,
-            completionTokens: 0,
-            totalTokens: totalTokens
-        });
     }
 
     console.log(`[embeddings] Complete. Generated ${allEmbeddings.length} embeddings using ${totalTokens} tokens`);

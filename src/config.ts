@@ -1,0 +1,1 @@
+export const JINA_API_KEY = process.env.JINA_API_KEY || ''; 

@@ -512,6 +512,28 @@
                 transform: rotate(360deg);
             }
         }
+
+        .guideline {
+            stroke: #ffffff;
+            stroke-width: 1.5;
+            stroke-dasharray: 2;
+            pointer-events: none;
+        }
+
+        .guideline-text {
+            fill: #ffffff;
+            font-size: 12px;
+            pointer-events: none;
+            background-color: rgba(42, 42, 42, 0.9);
+            padding: 4px;
+            border-radius: 4px;
+        }
+
+        .guideline-text-bg {
+            fill: rgba(42, 42, 42, 0.9);
+            rx: 4;
+            ry: 4;
+        }
     </style>
 </head>
 
@@ -645,17 +667,17 @@
             const containerWidth = container.node().getBoundingClientRect().width;
             const containerHeight = container.node().getBoundingClientRect().height;
 
-            // Calculate cell size to ensure squares
-            const maxCellWidth = containerWidth / nCols;
-            const maxCellHeight = containerHeight / nRows;
+            // Calculate cell size to ensure squares, accounting for padding
+            const padding = { top: 20, right: 20, bottom: 20, left: 20 };
+            const availableWidth = containerWidth - padding.left - padding.right;
+            const availableHeight = containerHeight - padding.top - padding.bottom;
+            const maxCellWidth = availableWidth / nCols;
+            const maxCellHeight = availableHeight / nRows;
             const cellSize = Math.min(maxCellWidth, maxCellHeight);
 
             // Calculate total width and height to maintain square cells
             const width = cellSize * nCols;
             const height = cellSize * nRows;
-
-            // Add padding for labels
-            const padding = { top: 20, right: 20, bottom: 20, left: 20 };
             const totalWidth = width + padding.left + padding.right;
             const totalHeight = height + padding.top + padding.bottom;
 
@@ -665,6 +687,7 @@
                 .style('display', 'block')
                 .style('margin', 'auto');
 
+            // Main group for the heatmap
             const g = svg.append('g')
                 .attr('transform', `translate(${padding.left},${padding.top})`);
 
@@ -688,7 +711,6 @@
                     const lenThreshold = parseInt(document.getElementById('length-threshold').value);
                     const meetsThresholds = value >= simThreshold && rowLen >= lenThreshold && colLen >= lenThreshold;
 
-                    // Always show color, but use a more visible color for cells below threshold
                     return meetsThresholds ? colorScale(value) : '#444444';
                 })
                 .on('mouseover', function (event, d) {
@@ -701,7 +723,6 @@
                     const lenThreshold = parseInt(document.getElementById('length-threshold').value);
                     const meetsThresholds = value >= simThreshold && rowLen >= lenThreshold && colLen >= lenThreshold;
 
-                    // Always show tooltip, but indicate if cell is below threshold
                     const text = formatHoverText(
                         rowFull[i],
                         colFull[j],
@@ -720,6 +741,102 @@
                 })
                 .on('mouseout', function () {
                     tooltip.style('display', 'none');
+                })
+                .on('click', function (event, d) {
+                    const i = Math.floor(d / nCols);
+                    const j = d % nCols;
+                    const value = matrix[i][j];
+                    const rowLen = rowFull[i].length;
+                    const colLen = colFull[j].length;
+                    const simThreshold = parseFloat(document.getElementById('threshold').value);
+                    const lenThreshold = parseInt(document.getElementById('length-threshold').value);
+                    const meetsThresholds = value >= simThreshold && rowLen >= lenThreshold && colLen >= lenThreshold;
+
+                    if (!meetsThresholds) return;
+
+                    // Remove existing guidelines if any
+                    svg.selectAll('.guideline-group').remove();
+
+                    // Get SVG's position relative to the container
+                    const svgRect = svg.node().getBoundingClientRect();
+                    const containerRect = d3.select('#heatmap').node().getBoundingClientRect();
+                    const svgOffsetX = svgRect.left - containerRect.left;
+                    const svgOffsetY = svgRect.top - containerRect.top;
+
+                    // Create new guideline group
+                    const guidelineGroup = svg.append('g')
+                        .attr('class', 'guideline-group')
+                        .attr('transform', `translate(${padding.left},${padding.top})`);
+
+                    // Calculate positions
+                    const x = j * cellSize + cellSize / 2;
+                    const y = i * cellSize + cellSize / 2;
+
+                    // Add guidelines
+                    guidelineGroup.append('line')
+                        .attr('class', 'guideline')
+                        .attr('x1', 0)
+                        .attr('x2', width)
+                        .attr('y1', y)
+                        .attr('y2', y);
+
+                    guidelineGroup.append('line')
+                        .attr('class', 'guideline')
+                        .attr('x1', x)
+                        .attr('x2', x)
+                        .attr('y1', 0)
+                        .attr('y2', height);
+
+                    // Prepare text content
+                    const rowText = `[Y${i}: ${rowLen}]: ${wrapText(rowFull[i])}`;
+                    const colText = `[X${j}: ${colLen}]: ${wrapText(colFull[j])}`;
+                    const simText = `S(X${j}, Y${i}): ${value.toFixed(4)}`;
+
+                    // Function to create text with background
+                    function createTextWithBg(x, y, text) {
+                        const textElement = guidelineGroup.append('text')
+                            .attr('class', 'guideline-text')
+                            .attr('x', x)
+                            .attr('y', y)
+                            .text(text);
+
+                        const bbox = textElement.node().getBBox();
+                        guidelineGroup.insert('rect', 'text')
+                            .attr('class', 'guideline-text-bg')
+                            .attr('x', bbox.x - 4)
+                            .attr('y', bbox.y - 4)
+                            .attr('width', bbox.width + 8)
+                            .attr('height', bbox.height + 8);
+                    }
+
+                    // Add text overlays with backgrounds
+                    createTextWithBg(x + 10, y - 10, colText);
+                    createTextWithBg(x + 10, y + 20, rowText);
+
+                    // Remove any existing click handler
+                    document.removeEventListener('click', window.clearGuidelines);
+
+                    // Add click handler to clear guidelines
+                    window.clearGuidelines = function (event) {
+                        // Don't clear if clicking on the same cell
+                        const target = event.target;
+                        if (target.tagName === 'rect' && target.parentNode === g.node()) {
+                            const rectX = parseFloat(target.getAttribute('x'));
+                            const rectY = parseFloat(target.getAttribute('y'));
+                            const clickedI = Math.floor(rectY / cellSize);
+                            const clickedJ = Math.floor(rectX / cellSize);
+                            if (clickedI === i && clickedJ === j) {
+                                return;
+                            }
+                        }
+                        svg.selectAll('.guideline-group').remove();
+                        document.removeEventListener('click', window.clearGuidelines);
+                    };
+
+                    // Add slight delay to prevent immediate clearing
+                    setTimeout(() => {
+                        document.addEventListener('click', window.clearGuidelines);
+                    }, 100);
                 });
 
             // Add x-axis label
@@ -746,7 +863,7 @@
                 document.getElementById('spinner').style.display = 'none';
             }, 100);
 
-            return { svg, g, cells, cellSize, padding };
+            return { svg, g, cells, cellSize, padding, width, height };
         }
 
         // Create histogram
@@ -887,14 +1004,23 @@
                 const [x, y] = d3.pointer(event);
                 const rect = selectionRect.node().getBBox();
                 selectionBBox = rect;
-                // Convert screen coordinates to cell indices
+
+                // Get SVG's position relative to the container
+                const svgRect = heatmap.svg.node().getBoundingClientRect();
+                const containerRect = d3.select('#heatmap').node().getBoundingClientRect();
+                const svgOffsetX = svgRect.left - containerRect.left;
+                const svgOffsetY = svgRect.top - containerRect.top;
+
+                // Convert screen coordinates to cell indices, accounting for SVG offset
                 const startRow = Math.floor((rect.y - heatmap.padding.top) / heatmap.cellSize);
                 const endRow = Math.floor((rect.y + rect.height - heatmap.padding.top) / heatmap.cellSize);
                 const startCol = Math.floor((rect.x - heatmap.padding.left) / heatmap.cellSize);
                 const endCol = Math.floor((rect.x + rect.width - heatmap.padding.left) / heatmap.cellSize);
+
                 // Get selected chunks
                 const selectedRows = rowFull.slice(Math.max(0, startRow), Math.min(nRows, endRow + 1));
                 const selectedCols = colFull.slice(Math.max(0, startCol), Math.min(nCols, endCol + 1));
+
                 // Update selection panel
                 const rowLabel = `${rowFile} ${selectedRows.length} chunk${selectedRows.length === 1 ? '' : 's'}`;
                 const colLabel = `${colFile} ${selectedCols.length} chunk${selectedCols.length === 1 ? '' : 's'}`;
@@ -1033,17 +1159,17 @@
             const containerWidth = container.node().getBoundingClientRect().width;
             const containerHeight = container.node().getBoundingClientRect().height;
 
-            // Calculate cell size to ensure squares
-            const maxCellWidth = containerWidth / nCols;
-            const maxCellHeight = containerHeight / nRows;
+            // Calculate cell size to ensure squares, accounting for padding
+            const padding = { top: 20, right: 20, bottom: 20, left: 20 };
+            const availableWidth = containerWidth - padding.left - padding.right;
+            const availableHeight = containerHeight - padding.top - padding.bottom;
+            const maxCellWidth = availableWidth / nCols;
+            const maxCellHeight = availableHeight / nRows;
             const cellSize = Math.min(maxCellWidth, maxCellHeight);
 
             // Calculate total width and height to maintain square cells
             const width = cellSize * nCols;
             const height = cellSize * nRows;
-
-            // Add padding for labels
-            const padding = { top: 20, right: 20, bottom: 20, left: 20 };
             const totalWidth = width + padding.left + padding.right;
             const totalHeight = height + padding.top + padding.bottom;
 
@@ -1052,6 +1178,10 @@
                 .attr('height', totalHeight);
 
             heatmap.g
+                .attr('transform', `translate(${padding.left},${padding.top})`);
+
+            // Update guideline group transform if it exists
+            heatmap.svg.selectAll('.guideline-group')
                 .attr('transform', `translate(${padding.left},${padding.top})`);
 
             heatmap.cells
@@ -1081,18 +1211,6 @@
                 .attr('fill', '#ffffff')
                 .attr('font-size', '12px')
                 .text(`${rowFile} (${nRows} chunks)`);
-
-            // Update histograms
-            const simHistContainer = d3.select('#histogram');
-            const lenHistContainer = d3.select('#length-histogram');
-
-            simHist.svg
-                .attr('width', simHistContainer.node().getBoundingClientRect().width)
-                .attr('height', simHistContainer.node().getBoundingClientRect().height);
-
-            lenHist.svg
-                .attr('width', lenHistContainer.node().getBoundingClientRect().width)
-                .attr('height', lenHistContainer.node().getBoundingClientRect().height);
 
             updateVisualization(
                 parseFloat(document.getElementById('threshold').value),

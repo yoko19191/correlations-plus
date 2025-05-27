@@ -35,16 +35,47 @@ function computeCorrelationMatrix(embeddings1: number[][], embeddings2: number[]
     return matrix.to2DArray();
 }
 
+function isImagePath(str: string): boolean {
+    return str.startsWith('data:image/') ||
+        str.startsWith('http://') ||
+        str.startsWith('https://') ||
+        str.endsWith('.jpg') ||
+        str.endsWith('.jpeg') ||
+        str.endsWith('.png') ||
+        str.endsWith('.gif') ||
+        str.endsWith('.webp');
+}
+
+function resolveImagePath(filePath: string, baseDir: string): string {
+    if (filePath.startsWith('data:image/') || filePath.startsWith('http://') || filePath.startsWith('https://')) {
+        return filePath;
+    }
+
+    // Handle relative paths
+    const fullPath = path.resolve(baseDir, filePath);
+    if (fs.existsSync(fullPath)) {
+        // Convert to data URI for local files
+        const mimeType = path.extname(fullPath).toLowerCase() === '.png' ? 'image/png' : 'image/jpeg';
+        const imageBuffer = fs.readFileSync(fullPath);
+        return `data:${mimeType};base64,${imageBuffer.toString('base64')}`;
+    }
+
+    return filePath;
+}
+
 async function loadEmbeddings(filePath: string): Promise<{ embeddings: number[][], chunks: string[] }> {
     return new Promise((resolve, reject) => {
         const embeddings: number[][] = [];
         const chunks: string[] = [];
+        const baseDir = path.dirname(filePath);
 
         fs.createReadStream(filePath)
             .pipe(ndjson.parse())
             .on('data', (obj: EmbeddingOutput) => {
                 embeddings.push(obj.embedding);
-                chunks.push(obj.chunk);
+                // Resolve image paths if the chunk is an image
+                const chunk = isImagePath(obj.chunk) ? resolveImagePath(obj.chunk, baseDir) : obj.chunk;
+                chunks.push(chunk);
             })
             .on('end', () => resolve({ embeddings, chunks }))
             .on('error', reject);
@@ -52,6 +83,9 @@ async function loadEmbeddings(filePath: string): Promise<{ embeddings: number[][
 }
 
 function truncateLabel(text: string, maxLen = 32): string {
+    if (isImagePath(text)) {
+        return '🖼️'; // Use an emoji to indicate image
+    }
     return text.length > maxLen ? text.slice(0, maxLen) + '…' : text;
 }
 

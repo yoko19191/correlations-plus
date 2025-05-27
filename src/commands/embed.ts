@@ -36,19 +36,20 @@ async function main() {
 
     program
         .name('embed')
-        .description('Embed text chunks from a file')
+        .description('Embed text from a file')
         .argument('<file>', 'Input text file path')
         .option('-c, --chunk <type>', 'Chunking type (newline, punctuation, characters, regex)', 'newline')
         .option('-v, --value <value>', 'Value for chunking (number for characters, regex pattern for regex)')
         .option('-d, --dimensions <number>', 'Embedding dimensions', '1024')
         .option('-l, --late-chunking', 'Enable late chunking')
-        .option('-t, --embedding-type <type>', 'Embedding type (text-matching, retrieval.passage, retrieval.query)')
+        .option('-t, --task-type <type>', 'Task type (text-matching, retrieval.passage, retrieval.query)')
         .option('-o, --output <path>', 'Output JSON file path')
         .parse(process.argv);
 
     const options = program.opts();
     const inputFile = program.args[0];
     const outputPath = options.output || `${inputFile}.jsonl`;
+    console.log(options);
 
     try {
         // Read input file

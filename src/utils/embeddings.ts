@@ -8,7 +8,6 @@ import {
 import axiosClient from './axios-client';
 
 const JINA_API_KEY = process.env.JINA_API_KEY;
-const BATCH_SIZE = 128;
 const API_URL = "https://api.jina.ai/v1/embeddings";
 const MAX_RETRIES = 3;
 
@@ -18,6 +17,9 @@ export async function getEmbeddings(
     options: EmbeddingOptions = {}
 ): Promise<EmbeddingResult> {
     console.log(`[embeddings] Embedding ${texts.length} texts`);
+
+    // disable batching if late chunking is enabled
+    const BATCH_SIZE = options.late_chunking ? texts.length : 128;
 
     if (!JINA_API_KEY) {
         throw new Error('JINA_API_KEY is not set');

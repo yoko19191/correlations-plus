@@ -44,6 +44,9 @@
         #heatmap {
             width: 100%;
             height: 100%;
+            user-select: none;
+            -webkit-user-select: none;
+            -ms-user-select: none;
         }
 
         #hover-panel {
@@ -199,7 +202,6 @@
             padding: 10px 10px 12px 10px;
             display: none;
             width: 400px;
-            max-height: 300px;
             overflow-y: auto;
             cursor: move;
             backdrop-filter: blur(8px);
@@ -208,6 +210,20 @@
             transform: translateZ(0);
             will-change: transform;
             backface-visibility: hidden;
+        }
+
+        .mini-heatmap {
+            width: 100%;
+            height: 100px;
+            margin-bottom: 10px;
+            background-color: transparent;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .mini-heatmap svg {
+            width: 100%;
+            height: 100%;
         }
 
         .selection-panel-header {
@@ -356,7 +372,11 @@
         }
 
         .colormap-group button[data-colormap="plasma"]::before {
-            background: linear-gradient(to right, #0d0887, #cc4778, #f0f921);
+            background: linear-gradient(to right, #00204c, #7e7f3e, #fdea45);
+        }
+
+        .colormap-group button[data-colormap="cividis"]::before {
+            background: linear-gradient(to right, #00204c, #7e7f3e, #fdea45);
         }
 
         .colormap-group button[data-colormap="inferno"]::before {
@@ -493,7 +513,7 @@
             <div class="slider-container">
                 <label for="threshold">Similarity: <span id="threshold-value">0.0</span> (<span
                         id="threshold-count">0</span> values)</label>
-                <input type="range" id="threshold" min="0" max="1" step="0.01" value="0">
+                <input type="range" id="threshold" min="-1" max="1" step="0.01" value="-1">
                 <div id="histogram"></div>
             </div>
             <div class="slider-container">
@@ -505,7 +525,7 @@
             <div class="colormap-group">
                 <button data-colormap="rdbu" class="active">RdBu</button>
                 <button data-colormap="viridis">Viridis</button>
-                <button data-colormap="plasma">Plasma</button>
+                <button data-colormap="cividis">Cividis</button>
                 <button data-colormap="inferno">Inferno</button>
             </div>
         </div>
@@ -539,6 +559,7 @@
                 <button class="close-btn" id="close-selection" title="Close">&times;</button>
             </div>
         </div>
+        <div class="mini-heatmap" id="mini-heatmap"></div>
         <div class="selection-panel-content">
             <div class="panel-section">
                 <label for="row-chunks" id="row-chunks-label"></label>
@@ -593,7 +614,7 @@
 
         // Create color scale
         let colorScale = d3.scaleSequential()
-            .domain([1, 0])  // Inverted domain to reverse the colormap
+            .domain([1, -1])  // Will be updated dynamically
             .interpolator(d3.interpolateRdBu);
 
         // Create tooltip
@@ -646,7 +667,15 @@
                 .attr('fill', d => {
                     const i = Math.floor(d / nCols);
                     const j = d % nCols;
-                    return colorScale(matrix[i][j]);
+                    const value = matrix[i][j];
+                    const rowLen = rowFull[i].length;
+                    const colLen = colFull[j].length;
+                    const simThreshold = parseFloat(document.getElementById('threshold').value);
+                    const lenThreshold = parseInt(document.getElementById('length-threshold').value);
+                    const meetsThresholds = value >= simThreshold && rowLen >= lenThreshold && colLen >= lenThreshold;
+
+                    // Always show color, but use a more visible color for cells below threshold
+                    return meetsThresholds ? colorScale(value) : '#444444';
                 })
                 .on('mouseover', function (event, d) {
                     const i = Math.floor(d / nCols);
@@ -656,25 +685,24 @@
                     const colLen = colFull[j].length;
                     const simThreshold = parseFloat(document.getElementById('threshold').value);
                     const lenThreshold = parseInt(document.getElementById('length-threshold').value);
+                    const meetsThresholds = value >= simThreshold && rowLen >= lenThreshold && colLen >= lenThreshold;
 
-                    // Only show tooltip if cell meets thresholds
-                    if (value >= simThreshold && rowLen >= lenThreshold && colLen >= lenThreshold) {
-                        const text = formatHoverText(
-                            rowFull[i],
-                            colFull[j],
-                            i,
-                            rowLen,
-                            j,
-                            colLen,
-                            value
-                        );
+                    // Always show tooltip, but indicate if cell is below threshold
+                    const text = formatHoverText(
+                        rowFull[i],
+                        colFull[j],
+                        i,
+                        rowLen,
+                        j,
+                        colLen,
+                        value
+                    ) + (meetsThresholds ? '' : '\n(Below threshold)');
 
-                        tooltip
-                            .style('display', 'block')
-                            .style('left', (event.pageX + 10) + 'px')
-                            .style('top', (event.pageY + 10) + 'px')
-                            .html(text.replace(/\n/g, '<br>'));
-                    }
+                    tooltip
+                        .style('display', 'block')
+                        .style('left', (event.pageX + 10) + 'px')
+                        .style('top', (event.pageY + 10) + 'px')
+                        .html(text.replace(/\n/g, '<br>'));
                 })
                 .on('mouseout', function () {
                     tooltip.style('display', 'none');
@@ -861,11 +889,14 @@
                 document.getElementById('row-chunks').value = selectedRows.join('\n\n');
                 document.getElementById('col-chunks').value = selectedCols.join('\n\n');
                 document.getElementById('selection-panel').style.display = 'block';
+
+                // Create mini heatmap
+                createMiniHeatmap(selectedRows, selectedCols, Math.max(0, startRow), Math.max(0, startCol));
             });
 
         // Compute histograms
         const simHistogram = d3.histogram()
-            .domain([0, 1])
+            .domain([-1, 1])
             .thresholds(50)(matrix.flat().filter(d => !isNaN(d)));
 
         const lengthHistogram = d3.histogram()
@@ -875,7 +906,7 @@
         const simHist = createHistogram(
             d3.select('#histogram'),
             simHistogram.map(d => d.length),
-            [0, 1]
+            [-1, 1]
         );
 
         const lenHist = createHistogram(
@@ -889,6 +920,22 @@
             let aboveThreshold = 0;
             let aboveLengthThreshold = 0;
             const correlations = [];
+            let minValue = Infinity;
+            let maxValue = -Infinity;
+
+            // First pass: find min/max values in the matrix
+            for (let i = 0; i < nRows; i++) {
+                for (let j = 0; j < nCols; j++) {
+                    const value = matrix[i][j];
+                    if (!isNaN(value)) {
+                        minValue = Math.min(minValue, value);
+                        maxValue = Math.max(maxValue, value);
+                    }
+                }
+            }
+
+            // Update color scale domain
+            colorScale.domain([maxValue, minValue]);
 
             // Update heatmap
             heatmap.cells
@@ -916,7 +963,7 @@
                         aboveLengthThreshold++;
                     }
 
-                    return meetsThresholds ? colorScale(value) : '#000000';
+                    return meetsThresholds ? colorScale(value) : '#444444';
                 })
                 .style('cursor', d => {
                     const i = Math.floor(d / nCols);
@@ -1092,7 +1139,8 @@
         });
 
         // Initial update
-        updateVisualization(0, 0);
+        thresholdValue.textContent = thresholdSlider.value;
+        updateVisualization(-1, 0);
 
         // Make the controls panel draggable
         (function () {
@@ -1169,10 +1217,10 @@
                         .domain([1, 0])
                         .interpolator(d3.interpolateViridis);
                     break;
-                case 'plasma':
+                case 'cividis':
                     colorScale = d3.scaleSequential()
                         .domain([1, 0])
-                        .interpolator(d3.interpolatePlasma);
+                        .interpolator(d3.interpolateCividis);
                     break;
                 case 'inferno':
                     colorScale = d3.scaleSequential()
@@ -1181,7 +1229,7 @@
                     break;
                 default: // rdbu
                     colorScale = d3.scaleSequential()
-                        .domain([1, 0])
+                        .domain([1, -1])
                         .interpolator(d3.interpolateRdBu);
             }
             updateVisualization(
@@ -1198,6 +1246,77 @@
                 updateColorScale(this.dataset.colormap);
             });
         });
+
+        // Function to create mini heatmap
+        function createMiniHeatmap(selectedRows, selectedCols, startRow, startCol) {
+            const container = d3.select('#mini-heatmap');
+            container.selectAll('*').remove();
+
+            const width = container.node().getBoundingClientRect().width;
+            const height = container.node().getBoundingClientRect().height;
+
+            // Add padding for labels
+            const padding = { top: 15, right: 15, bottom: 15, left: 15 };
+            const innerWidth = width - padding.left - padding.right;
+            const innerHeight = height - padding.top - padding.bottom;
+
+            // Calculate cell size to ensure squares
+            const maxCellWidth = innerWidth / selectedCols.length;
+            const maxCellHeight = innerHeight / selectedRows.length;
+            const cellSize = Math.min(maxCellWidth, maxCellHeight);
+
+            // Calculate total width and height to maintain square cells
+            const totalWidth = cellSize * selectedCols.length;
+            const totalHeight = cellSize * selectedRows.length;
+
+            // Center the heatmap in the available space
+            const xOffset = padding.left + (innerWidth - totalWidth) / 2;
+            const yOffset = padding.top + (innerHeight - totalHeight) / 2;
+
+            const svg = container.append('svg')
+                .attr('width', width)
+                .attr('height', height);
+
+            const g = svg.append('g')
+                .attr('transform', `translate(${xOffset},${yOffset})`);
+
+            // Create cells
+            g.selectAll('rect')
+                .data(d3.range(selectedRows.length * selectedCols.length))
+                .enter()
+                .append('rect')
+                .attr('x', d => (d % selectedCols.length) * cellSize)
+                .attr('y', d => Math.floor(d / selectedCols.length) * cellSize)
+                .attr('width', cellSize)
+                .attr('height', cellSize)
+                .attr('fill', d => {
+                    const i = Math.floor(d / selectedCols.length);
+                    const j = d % selectedCols.length;
+                    const value = matrix[startRow + i][startCol + j];
+                    return colorScale(value);
+                });
+
+            // Add x-axis label at the top (shorthand)
+            svg.append('text')
+                .attr('x', width / 2)
+                .attr('y', 10)
+                .attr('text-anchor', 'middle')
+                .attr('fill', '#ffffff')
+                .attr('font-size', '10px')
+                .text(`X${startCol}-X${startCol + selectedCols.length - 1}`);
+
+            // Add y-axis label, close to the left edge of the heatmap, vertically centered (shorthand)
+            svg.append('text')
+                .attr('transform', `rotate(-90)`)
+                .attr('x', -((yOffset + totalHeight / 2)))
+                .attr('y', Math.max(8, xOffset - 6))
+                .attr('text-anchor', 'middle')
+                .attr('fill', '#ffffff')
+                .attr('font-size', '10px')
+                .text(`Y${startRow}-Y${startRow + selectedRows.length - 1}`);
+
+            return { svg, g };
+        }
     </script>
 </body>
 

@@ -1,6 +1,9 @@
 # Correlations
 
-A simple UI for debugging correlations of text embeddings.
+A simple UI for debugging correlations of text embeddings. At Jina AI we use this tool for vibe-checking embeddings, late chunking, etc.
+
+![correlations: vibe checking embeddings](example.webp)
+
 
 ## Get Started
 

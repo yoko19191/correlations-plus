@@ -1,11 +1,12 @@
+export type TaskType = "text-matching" | "retrieval.passage" | "retrieval.query";
+
 export interface JinaEmbeddingRequest {
     model: string;
-    task?: "text-matching" | "retrieval.passage" | "retrieval.query";
+    task?: TaskType;
     input: string[];
     truncate?: boolean;
     dimensions?: number;
     late_chunking?: boolean;
-    embedding_type?: string;
 }
 
 export interface JinaEmbeddingResponse {
@@ -29,10 +30,9 @@ export interface TokenTracker {
 }
 
 export interface EmbeddingOptions {
-    task?: "text-matching" | "retrieval.passage" | "retrieval.query";
+    task?: TaskType;
     dimensions?: number;
     late_chunking?: boolean;
-    embedding_type?: string;
 }
 
 export interface EmbeddingResult {

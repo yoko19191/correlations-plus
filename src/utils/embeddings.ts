@@ -17,7 +17,7 @@ export async function getEmbeddings(
     tokenTracker?: TokenTracker,
     options: EmbeddingOptions = {}
 ): Promise<EmbeddingResult> {
-    console.log(`[embeddings] Getting embeddings for ${texts.length} texts`);
+    console.log(`[embeddings] Embedding ${texts.length} texts`);
 
     if (!JINA_API_KEY) {
         throw new Error('JINA_API_KEY is not set');

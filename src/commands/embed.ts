@@ -1,8 +1,7 @@
 import fs from 'fs';
-import path from 'path';
 import { Command } from 'commander';
 import { getEmbeddings } from '../utils/embeddings';
-import { ChunkOptions, EmbeddingOutput } from '../types';
+import { ChunkOptions, TaskType } from '../types';
 
 function chunkText(text: string, options: ChunkOptions): string[] {
     switch (options.type) {
@@ -10,8 +9,8 @@ function chunkText(text: string, options: ChunkOptions): string[] {
             return text.split('\n').filter(chunk => chunk.trim().length > 0);
 
         case 'punctuation':
-            // Split by common Chinese and English punctuation
-            return text.split(/[.!?。！？]/).filter(chunk => chunk.trim().length > 0);
+            // Split by common Chinese and English punctuation while preserving them
+            return text.split(/(?<=[.!?。！？])/).filter(chunk => chunk.trim().length > 0);
 
         case 'characters':
             const chunkSize = Number(options.value) || 1000;
@@ -43,7 +42,7 @@ async function main() {
         .option('-v, --value <value>', 'Value for chunking (number for characters, regex pattern for regex)')
         .option('-d, --dimensions <number>', 'Embedding dimensions', '1024')
         .option('-l, --late-chunking', 'Enable late chunking')
-        .option('-t, --embedding-type <type>', 'Embedding type')
+        .option('-t, --embedding-type <type>', 'Embedding type (text-matching, retrieval.passage, retrieval.query)')
         .option('-o, --output <path>', 'Output JSON file path')
         .parse(process.argv);
 
@@ -69,7 +68,7 @@ async function main() {
         const { embeddings } = await getEmbeddings(chunks, undefined, {
             dimensions: Number(options.dimensions),
             late_chunking: options.lateChunking,
-            embedding_type: options.embeddingType
+            task: options.embeddingType
         });
 
         // Write JSON Lines output

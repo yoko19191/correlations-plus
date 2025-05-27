@@ -160,6 +160,9 @@
             box-sizing: border-box;
             backdrop-filter: blur(8px);
             -webkit-backdrop-filter: blur(8px);
+            transform: translateZ(0);
+            will-change: transform;
+            backface-visibility: hidden;
         }
 
         .button-group {
@@ -171,6 +174,9 @@
             backdrop-filter: blur(8px);
             -webkit-backdrop-filter: blur(8px);
             box-sizing: border-box;
+            transform: translateZ(0);
+            will-change: transform;
+            backface-visibility: hidden;
         }
 
         .button-group button {
@@ -199,6 +205,9 @@
             backdrop-filter: blur(8px);
             -webkit-backdrop-filter: blur(8px);
             box-sizing: border-box;
+            transform: translateZ(0);
+            will-change: transform;
+            backface-visibility: hidden;
         }
 
         .selection-panel-header {
@@ -233,7 +242,25 @@
             transition: background 0.2s;
         }
 
-        .selection-panel .close-btn:hover {
+        .selection-panel .copy-btn {
+            background: #444;
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            font-size: 14px;
+            line-height: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 8px;
+            transition: background 0.2s;
+        }
+
+        .selection-panel .close-btn:hover,
+        .selection-panel .copy-btn:hover {
             background: #ff4444;
         }
 
@@ -282,6 +309,58 @@
             -webkit-backdrop-filter: blur(8px);
             width: 100%;
             box-sizing: border-box;
+            transform: translateZ(0);
+            will-change: transform;
+            backface-visibility: hidden;
+        }
+
+        .colormap-group {
+            display: flex;
+            gap: 2px;
+            width: 100%;
+            padding: 5px;
+            background-color: rgba(42, 42, 42, 0.7);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            box-sizing: border-box;
+            transform: translateZ(0);
+            will-change: transform;
+            backface-visibility: hidden;
+        }
+
+        .colormap-group button {
+            flex: 1;
+            min-width: 0;
+            box-sizing: border-box;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .colormap-group button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        .colormap-group button[data-colormap="rdbu"]::before {
+            background: linear-gradient(to right, #b2182b, #ffffff, #2166ac);
+        }
+
+        .colormap-group button[data-colormap="viridis"]::before {
+            background: linear-gradient(to right, #440154, #21918c, #fde725);
+        }
+
+        .colormap-group button[data-colormap="plasma"]::before {
+            background: linear-gradient(to right, #0d0887, #cc4778, #f0f921);
+        }
+
+        .colormap-group button[data-colormap="inferno"]::before {
+            background: linear-gradient(to right, #000004, #bc3754, #fcfdbf);
         }
 
         .slider-container {
@@ -297,6 +376,9 @@
             padding: 5px;
             border-radius: 3px;
             box-sizing: border-box;
+            transform: translateZ(0);
+            will-change: transform;
+            backface-visibility: hidden;
         }
 
         .slider-container label {
@@ -384,6 +466,12 @@
                 <input type="range" id="length-threshold" min="0" max="1000" step="1" value="0">
                 <div id="length-histogram"></div>
             </div>
+            <div class="colormap-group">
+                <button data-colormap="rdbu" class="active">RdBu</button>
+                <button data-colormap="viridis">Viridis</button>
+                <button data-colormap="plasma">Plasma</button>
+                <button data-colormap="inferno">Inferno</button>
+            </div>
         </div>
     </div>
     <div class="container" id="container">
@@ -410,7 +498,10 @@
     <div class="selection-panel" id="selection-panel">
         <div class="selection-panel-header">
             <h3>Selected Area</h3>
-            <button class="close-btn" id="close-selection" title="Close">&times;</button>
+            <div style="display: flex; gap: 4px;">
+                <button class="copy-btn" id="copy-selection" title="Copy">📋</button>
+                <button class="close-btn" id="close-selection" title="Close">&times;</button>
+            </div>
         </div>
         <div class="selection-panel-content">
             <div class="panel-section">
@@ -465,7 +556,7 @@
         }
 
         // Create color scale
-        const colorScale = d3.scaleSequential()
+        let colorScale = d3.scaleSequential()
             .domain([1, 0])  // Inverted domain to reverse the colormap
             .interpolator(d3.interpolateRdBu);
 
@@ -626,6 +717,27 @@
 
         document.getElementById('close-selection').addEventListener('click', function () {
             document.getElementById('selection-panel').style.display = 'none';
+        });
+
+        document.getElementById('copy-selection').addEventListener('click', function () {
+            const rowChunks = document.getElementById('row-chunks').value;
+            const colChunks = document.getElementById('col-chunks').value;
+            const rowLabel = document.getElementById('row-chunks-label').textContent;
+            const colLabel = document.getElementById('col-chunks-label').textContent;
+
+            const formattedText = `[${rowLabel}]\n${rowChunks}\n\n==========================================\n\n[${colLabel}]\n${colChunks}`;
+
+            navigator.clipboard.writeText(formattedText).then(() => {
+                // Visual feedback for copy
+                const btn = this;
+                const originalText = btn.textContent;
+                btn.textContent = '✓';
+                btn.style.background = '#4CAF50';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '';
+                }, 1000);
+            });
         });
 
         function clearSelection() {
@@ -996,6 +1108,44 @@
                 panel.style.transition = '';
             });
         })();
+
+        // Function to update color scale
+        function updateColorScale(colormap) {
+            switch (colormap) {
+                case 'viridis':
+                    colorScale = d3.scaleSequential()
+                        .domain([1, 0])
+                        .interpolator(d3.interpolateViridis);
+                    break;
+                case 'plasma':
+                    colorScale = d3.scaleSequential()
+                        .domain([1, 0])
+                        .interpolator(d3.interpolatePlasma);
+                    break;
+                case 'inferno':
+                    colorScale = d3.scaleSequential()
+                        .domain([1, 0])
+                        .interpolator(d3.interpolateInferno);
+                    break;
+                default: // rdbu
+                    colorScale = d3.scaleSequential()
+                        .domain([1, 0])
+                        .interpolator(d3.interpolateRdBu);
+            }
+            updateVisualization(
+                parseFloat(document.getElementById('threshold').value),
+                parseInt(document.getElementById('length-threshold').value)
+            );
+        }
+
+        // Add colormap button event listeners
+        document.querySelectorAll('.colormap-group button').forEach(button => {
+            button.addEventListener('click', function () {
+                document.querySelectorAll('.colormap-group button').forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+                updateColorScale(this.dataset.colormap);
+            });
+        });
     </script>
 </body>
 

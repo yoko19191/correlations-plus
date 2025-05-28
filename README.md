@@ -23,7 +23,7 @@ npm run corr -- v3-blog.jsonl v3-arxiv.jsonl
 
 `JINA_API_KEY` is used for embedding and reading content from a URL when necessary, reading from local text file is of course supported. You can also [bring your own embeddings](#bring-your-own-embeddings) and do `npm run corr ...` for visualization, in which case you don't need `JINA_API_KEY`.
 
-You can get a Jina API Key with free 10M tokens from https://jina.ai/#apiform.
+You can get a Jina API Key with free 10M tokens from https://jina.ai/#apiform. Otherwise, just do `npm run corr -- v3-blog.jsonl v3-arxiv.jsonl` for a simple vibe-check with our pre-embedded data.
 
 ## UI Features
 

@@ -13,7 +13,7 @@ dist/
 
 # Test files
 test*.txt
-*.jsonl
+test*.jsonl
 
 # Logs
 *.log

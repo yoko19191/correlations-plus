@@ -11,13 +11,19 @@ Click the image below to watch a video demo on Youtube.
 
 ```bash
 npm install
+
+# for get embedding from local file/remote url
 export JINA_API_KEY=your_jina_key_here
 npm run embed -- https://jina.ai/news/jina-embeddings-v3-a-frontier-multilingual-embedding-model -o v3-blog.jsonl -t retrieval.query
 npm run embed -- https://arxiv.org/pdf/2409.10173 -o v3-arxiv.jsonl -t retrieval.passage
+
+# if you just want a vibe-check of this tool, we have two jsonl pre-embedded in the repo
 npm run corr -- v3-blog.jsonl v3-arxiv.jsonl
 ```
 
 `JINA_API_KEY` is used for embedding and reading content from a URL when necessary, reading from local text file is of course supported. You can also [bring your own embeddings](#bring-your-own-embeddings) and do `npm run corr ...` for visualization, in which case you don't need `JINA_API_KEY`.
+
+You can get a Jina API Key with free 10M tokens from https://jina.ai/#apiform.
 
 ## UI Features
 

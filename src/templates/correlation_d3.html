@@ -415,6 +415,22 @@
             background: linear-gradient(to right, #000004, #bc3754, #fcfdbf);
         }
 
+        .colormap-group button.inverted[data-colormap="rdbu"]::before {
+            background: linear-gradient(to left, #b2182b, #ffffff, #2166ac);
+        }
+
+        .colormap-group button.inverted[data-colormap="viridis"]::before {
+            background: linear-gradient(to left, #440154, #21918c, #fde725);
+        }
+
+        .colormap-group button.inverted[data-colormap="cividis"]::before {
+            background: linear-gradient(to left, #00204c, #7e7f3e, #fdea45);
+        }
+
+        .colormap-group button.inverted[data-colormap="inferno"]::before {
+            background: linear-gradient(to left, #000004, #bc3754, #fcfdbf);
+        }
+
         .slider-container {
             display: flex;
             flex-direction: column;
@@ -1251,9 +1267,6 @@
                 }
             }
 
-            // Update color scale domain
-            colorScale.domain([maxValue, minValue]);
-
             // Update heatmap
             heatmap.cells
                 .attr('fill', d => {
@@ -1412,10 +1425,14 @@
         // Handle layout switching
         const container = document.getElementById('container');
         const hoverPanel = document.getElementById('hover-panel');
-        const buttons = document.querySelectorAll('.controls button');
+        const layoutButtons = [
+            document.getElementById('single'),
+            document.getElementById('vertical'),
+            document.getElementById('horizontal')
+        ];
 
         function setLayout(layout) {
-            buttons.forEach(btn => btn.classList.remove('active'));
+            layoutButtons.forEach(btn => btn.classList.remove('active'));
             document.getElementById(layout).classList.add('active');
 
             container.className = 'container';
@@ -1429,10 +1446,18 @@
                 hoverPanel.style.display = 'block';
             }
 
-            setTimeout(handleResize, 0);
+            // After layout change, reapply the current colormap and inversion
+            setTimeout(() => {
+                const activeBtn = document.querySelector('.colormap-group button.active');
+                if (activeBtn) {
+                    updateColorScale(activeBtn.dataset.colormap, activeBtn.classList.contains('inverted'));
+                } else {
+                    handleResize();
+                }
+            }, 0);
         }
 
-        buttons.forEach(button => {
+        layoutButtons.forEach(button => {
             button.addEventListener('click', () => setLayout(button.id));
         });
 
@@ -1456,7 +1481,13 @@
 
         // Initial update
         thresholdValue.textContent = thresholdSlider.value;
-        updateVisualization(-1, 0);
+        // Always use the current colormap and invert state
+        const activeBtn = document.querySelector('.colormap-group button.active');
+        if (activeBtn) {
+            updateColorScale(activeBtn.dataset.colormap, activeBtn.classList.contains('inverted'));
+        } else {
+            updateVisualization(-1, 0);
+        }
 
         // Make the controls panel draggable
         (function () {
@@ -1526,7 +1557,7 @@
         })();
 
         // Function to update color scale
-        function updateColorScale(colormap) {
+        function updateColorScale(colormap, invert = false) {
             // Find min and max values in the matrix
             let minValue = Infinity;
             let maxValue = -Infinity;
@@ -1539,27 +1570,26 @@
                     }
                 }
             }
-
             switch (colormap) {
                 case 'viridis':
                     colorScale = d3.scaleSequential()
                         .domain([minValue, maxValue])
-                        .interpolator(t => d3.interpolateViridis((t - minValue) / (maxValue - minValue)));
+                        .interpolator(t => d3.interpolateViridis(invert ? 1 - (t - minValue) / (maxValue - minValue) : (t - minValue) / (maxValue - minValue)));
                     break;
                 case 'cividis':
                     colorScale = d3.scaleSequential()
                         .domain([minValue, maxValue])
-                        .interpolator(t => d3.interpolateCividis((maxValue - t) / (maxValue - minValue)));
+                        .interpolator(t => d3.interpolateCividis(invert ? (t - minValue) / (maxValue - minValue) : (maxValue - t) / (maxValue - minValue)));
                     break;
                 case 'inferno':
                     colorScale = d3.scaleSequential()
                         .domain([minValue, maxValue])
-                        .interpolator(t => d3.interpolateInferno((maxValue - t) / (maxValue - minValue)));
+                        .interpolator(t => d3.interpolateInferno(invert ? (t - minValue) / (maxValue - minValue) : (maxValue - t) / (maxValue - minValue)));
                     break;
                 default: // rdbu
                     colorScale = d3.scaleSequential()
                         .domain([minValue, maxValue])
-                        .interpolator(d3.interpolateRdBu);
+                        .interpolator(invert ? (t => d3.interpolateRdBu(1 - (t - minValue) / (maxValue - minValue))) : d3.interpolateRdBu);
             }
             updateVisualization(
                 parseFloat(document.getElementById('threshold').value),
@@ -1567,12 +1597,26 @@
             );
         }
 
-        // Add colormap button event listeners
+        // Add colormap button event listeners with invert feature
+        let colormapInvertState = {};
         document.querySelectorAll('.colormap-group button').forEach(button => {
+            colormapInvertState[button.dataset.colormap] = false;
             button.addEventListener('click', function () {
-                document.querySelectorAll('.colormap-group button').forEach(btn => btn.classList.remove('active'));
-                this.classList.add('active');
-                updateColorScale(this.dataset.colormap);
+                const isActive = this.classList.contains('active');
+                const colormap = this.dataset.colormap;
+                if (isActive) {
+                    // Toggle invert state
+                    colormapInvertState[colormap] = !colormapInvertState[colormap];
+                    this.classList.toggle('inverted', colormapInvertState[colormap]);
+                    updateColorScale(colormap, colormapInvertState[colormap]);
+                } else {
+                    // Remove invert class from all buttons
+                    document.querySelectorAll('.colormap-group button').forEach(btn => btn.classList.remove('active', 'inverted'));
+                    this.classList.add('active');
+                    // Set invert state for this colormap
+                    this.classList.toggle('inverted', colormapInvertState[colormap]);
+                    updateColorScale(colormap, colormapInvertState[colormap]);
+                }
             });
         });
 

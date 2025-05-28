@@ -63,7 +63,7 @@ function resolveImagePath(filePath: string, baseDir: string): string {
     return filePath;
 }
 
-async function loadEmbeddings(filePath: string): Promise<{ embeddings: number[][], chunks: string[] }> {
+async function loadEmbeddings(filePath: string, model: string): Promise<{ embeddings: number[][], chunks: string[] }> {
     return new Promise((resolve, reject) => {
         const embeddings: number[][] = [];
         const chunks: string[] = [];
@@ -104,6 +104,7 @@ async function main() {
         .argument('<file1>', 'First JSONL file with embeddings')
         .argument('[file2]', 'Second JSONL file with embeddings (optional)')
         .option('-p, --port <number>', 'Port for the visualization server', '3000')
+        .option('-m, --model <string>', 'Embedding model to use', 'jina-embeddings-v3')
         .parse(process.argv);
 
     const options = program.opts();
@@ -111,13 +112,13 @@ async function main() {
 
     try {
         console.log('Loading embeddings...');
-        const { embeddings: embeddings1, chunks: chunks1 } = await loadEmbeddings(file1);
+        const { embeddings: embeddings1, chunks: chunks1 } = await loadEmbeddings(file1, options.model);
 
         let embeddings2: number[][];
         let chunks2: string[];
 
         if (file2) {
-            const result = await loadEmbeddings(file2);
+            const result = await loadEmbeddings(file2, options.model);
             embeddings2 = result.embeddings;
             chunks2 = result.chunks;
         } else {

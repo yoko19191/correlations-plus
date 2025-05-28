@@ -44,6 +44,7 @@ async function main() {
         .option('-d, --dimensions <number>', 'Embedding dimensions', '1024')
         .option('-l, --late-chunking', 'Enable late chunking')
         .option('-t, --task-type <type>', 'Task type (text-matching, retrieval.passage, retrieval.query)')
+        .option('-m, --model <string>', 'Embedding model to use', 'jina-embeddings-v3')
         .option('-o, --output <path>', 'Output JSON file path')
         .parse(process.argv);
 
@@ -56,13 +57,22 @@ async function main() {
 
         // Check if input is a URL
         if (input.startsWith('http://') || input.startsWith('https://')) {
-            const { response } = await readUrl(input);
-            text = response.data.content;
+            if (isImage(input)) {
+                text = input; // Send URL directly for web images
+            } else {
+                const { response } = await readUrl(input);
+                text = response.data.content;
+            }
             const domain = new URL(input).hostname.replace(/\./g, '-');
             outputPath = options.output || `${domain}.jsonl`;
         } else {
-            // Read input file
-            text = fs.readFileSync(input, 'utf-8');
+            // Check if it's a local image file
+            if (isImage(input)) {
+                const imageBuffer = fs.readFileSync(input);
+                text = imageBuffer.toString('base64'); // Send base64 without data URI prefix
+            } else {
+                text = fs.readFileSync(input, 'utf-8');
+            }
             outputPath = options.output || `${input.replace(/[^a-zA-Z0-9]/g, '_')}.jsonl`;
         }
 
@@ -82,7 +92,8 @@ async function main() {
         const { embeddings } = await getEmbeddings(chunks, {
             dimensions: Number(options.dimensions),
             late_chunking: options.lateChunking,
-            task: options.taskType
+            task: options.taskType,
+            model: options.model
         });
 
         // Write JSON Lines output
@@ -97,6 +108,11 @@ async function main() {
         console.error('Error:', error instanceof Error ? error.message : String(error));
         process.exit(1);
     }
+}
+
+function isImage(path: string): boolean {
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+    return imageExtensions.some(ext => path.toLowerCase().endsWith(ext));
 }
 
 if (require.main === module) {

@@ -39,6 +39,7 @@ export interface EmbeddingOptions {
     dimensions?: number;
     late_chunking?: boolean;
     task?: TaskType;
+    model?: string,
 }
 
 export interface EmbeddingResult {

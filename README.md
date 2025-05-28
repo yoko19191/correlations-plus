@@ -53,12 +53,13 @@ You can do either `npm run embed` or `npm run corr`. Note the double dash `--` i
 
 | Argument | Description | Default |
 |----------------|-------------|---------|
-| `<input>` | Local text file path or URL | required |
-| `-c, --chunk <type>` | Chunking type (newline, punctuation, characters, regex) | newline |
+| `<input>` | Local text file path or a URL | required |
+| `-c, --chunk <type>` | Chunking type (newline, punctuation, characters, regex) | `newline` |
 | `-v, --value <value>` | Value for chunking (number for characters, regex pattern) | - |
-| `-d, --dimensions <number>` | Embedding dimensions | 1024 |
-| `-l, --late-chunking` | Enable late chunking | false |
-| `-t, --task-type <type>` | Task type (text-matching, retrieval.passage, retrieval.query) | - |
+| `-d, --dimensions <number>` | Embedding dimensions | `1024` |
+| `-l, --late-chunking` | Enable late chunking | `false` |
+| `-t, --task-type <type>` | Task type (text-matching, retrieval.passage, retrieval.query) |  |
+| `-m, --model <name>` | Model name (jina-embeddings-v3, jina-clip-v2 for images) | `jina-embeddings-v3` |
 | `-o, --output <path>` | Output JSONL file path | auto-generated |
 
 ### `corr` Command
@@ -78,69 +79,75 @@ You can do either `npm run embed` or `npm run corr`. Note the double dash `--` i
 export JINA_API_KEY=your_jina_key_here
 ```
 
-1. Embed a text file with default settings (newline chunking):
+Embed a text file with default settings (newline chunking):
 ```bash
 npm run embed -- input.txt -o file1.jsonl
 ```
 
-2. Embed content from a URL:
+Embed content from a URL:
 ```bash
 npm run embed -- https://example.com/article -o file2.jsonl
 ```
 Behind the scene, it calls Jina Reader to crawl the content behind the given URL.
 
-3. Visualize self-correlations within a single file:
+Visualize self-correlations within a single file:
 ```bash
 npm run corr -- file1.jsonl
 ```
 
-4. Visualize correlations between two files:
+Visualize correlations between two files:
 ```bash
 npm run corr -- file1.jsonl file2.jsonl
 ```
 
 ### Advanced Embedding Options
 
-1. Use punctuation-based chunking:
+Use punctuation-based chunking:
 ```bash
 npm run embed -- input.txt --chunk punctuation
 ```
 
-2. Split by character count:
+Split by character count:
 ```bash
 npm run embed -- input.txt --chunk characters --value 500
 ```
 
-3. Use custom regex pattern for chunking:
+Use custom regex pattern for chunking:
 ```bash
 npm run embed -- input.txt --chunk regex --value "\\n\\n"
 ```
 
-4. Enable late chunking:
+Enable late chunking:
 ```bash
 npm run embed -- input.txt --late-chunking
 ```
 
-5. Specify task type for better embeddings:
+Specify task type for better embeddings:
 ```bash
 npm run embed -- input.txt --task-type text-matching
 npm run embed -- input.txt --task-type retrieval.passage
 npm run embed -- input.txt --task-type retrieval.query
 ```
 
-6. Custom output file:
+Custom output file:
 ```bash
 npm run embed -- input.txt --output custom.jsonl
 ```
 
+Embed images using jina-clip-v2, where each line in all_images.txt can be either a datauri string (without prefix) or an image URL:
+```bash
+# Embed a single image
+npm run embed -- all_images.txt --model jina-clip-v2
+```
+
 ### Visualization Options
 
-1. Change visualization server port:
+Change visualization server port:
 ```bash
 npm run corr -- file1.jsonl --port 8080
 ```
 
-2. Compare embeddings with different dimensions:
+Compare embeddings with different dimensions:
 ```bash
 npm run embed -- input.txt --dimensions 512
 npm run corr -- output.jsonl

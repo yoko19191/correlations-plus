@@ -41,7 +41,7 @@ Draw a selection rectangle on the heatmap to open the panel.
 ### Details Table
 Click "Vertical" or "Horizontal" layout button to open this table.
 - **Hover Rows**: See full text in tooltip
-- **Scroll**: Browse through top 100 correlations
+- **Scroll**: Browse through 100 correlations at the borderline
 
 ## CLI Reference
 
@@ -136,7 +136,6 @@ npm run embed -- input.txt --output custom.jsonl
 
 Embed images using jina-clip-v2, where each line in all_images.txt can be either a datauri string (without prefix) or an image URL:
 ```bash
-# Embed a single image
 npm run embed -- all_images.txt --model jina-clip-v2
 ```
 

@@ -162,12 +162,13 @@ npm run corr -- output.jsonl
 ## Bring Your Own Embeddings
 
 To use `npm run corr`, your data must be in a JSONL file where each line is a JSON object with:
-- `chunk`: The text segment (string)
-- `embedding`: The embedding vector (array of numbers)
+- `chunk: string` The text segment, an image local file path or an image url
+- `embedding: Array<number>` The embedding vector
 
 Example line:
 ```json
 {"chunk": "This is a text segment.", "embedding": [0.123, -0.456, ...]}
+{"chunk": "https://raw.githubusercontent.com/jina-ai/image-assets/main/2021-top-100.png", "embedding": [0.123, -0.456, ...]}
 ```
 
 If you bring your own embeddings:

@@ -17,7 +17,7 @@ npm run embed -- https://arxiv.org/pdf/2409.10173 -o v3-arxiv.jsonl -t retrieval
 npm run corr -- v3-blog.jsonl v3-arxiv.jsonl
 ```
 
-`JINA_API_KEY` is used for embedding and reading content from a URL when necessary. You can also [bring your own embeddings](#bring-your-own-embeddings) and just do `npm run corr ...` for visualization.
+`JINA_API_KEY` is used for embedding and reading content from a URL when necessary, reading from local text file is of course supported. You can also [bring your own embeddings](#bring-your-own-embeddings) and do `npm run corr ...` for visualization, in which case you don't need `JINA_API_KEY`.
 
 ## UI Features
 
@@ -139,6 +139,13 @@ Embed images using jina-clip-v2, where each line in all_images.txt can be either
 # Embed a single image
 npm run embed -- all_images.txt --model jina-clip-v2
 ```
+
+Image will be also displayed in the hover tooltip and table when the input is recognized as image. Here's an example of self-correlations of image embeddings:
+
+[![correlations: vibe checking embeddings](example-2.webp)](https://youtu.be/klvpG2zrRL0)
+
+Correlations of text-image embeddings are also supported.
+
 
 ### Visualization Options
 

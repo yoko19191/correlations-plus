@@ -50,4 +50,10 @@ export interface EmbeddingResult {
 export interface EmbeddingOutput {
     chunk: string;
     embedding: number[];
+}
+
+export interface EmbeddingProvider {
+    name: string;
+    supportsModel(model: string): boolean;
+    getEmbeddings(texts: string[] | Record<string, string>[], options: EmbeddingOptions): Promise<EmbeddingResult>;
 } 

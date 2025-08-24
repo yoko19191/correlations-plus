@@ -1,6 +1,6 @@
 import fs from 'fs';
 import { Command } from 'commander';
-import { getEmbeddings } from '../utils/embeddings';
+import { getEmbeddings } from '../utils/embedding-factory';
 import { ChunkOptions, TaskType } from '../types';
 import { readUrl } from '../utils/reader';
 
